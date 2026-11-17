@@ -1,53 +1,64 @@
-# Development guide
+# Development & Integration
 
-## Prerequisites
-
-Python 3.11+, Git, isolated virtualenv. The base package intentionally installs **no heavy dependencies**.
+Python 3.11+; clean environment.
 
 ```bash
 python -m venv .venv
-# source .venv/bin/activate       # macOS / Linux
-# .venv\Scripts\activate          # PowerShell
+# activate the venv
 python -m pip install -e ".[dev]"
 python -m pytest -q
 python -m ruff check src tests
+ananta stack-status
 ananta validate-data --csv examples/synthetic_m1.csv
 ananta demo --csv examples/synthetic_m1.csv --round-trip-cost-bps 8
 ```
 
-## Source layout
+The CLI is **research-only**. `stack-status` reads the selected registries but
+does not download/install models. Integration tests for pretrained models must
+run separately with explicit operator consent for large downloads.
+
+## Layout
 
 ```text
+config/
+  model_registry.yaml     # only the 7 selected pretrained checkpoints
+  component_registry.yaml # one selected upstream for each missing capability
 src/ananta/
-  contracts.py              # typed, timezone-safe Candle/Forecast interfaces
-  data.py                   # strict local CSV adapter
-  regime.py                 # heuristic QA detector (replace with trained)
-  ensemble.py               # simple weighted router & NO_TRADE prototype
-  evaluation.py             # basic walk-forward / spread-aware returns
-  experts/
-    base.py                 # Expert Protocol
-    baselines.py            # deterministic controls
-    autogluon_chronos.py    # optional pretrained Chronos-2 integration
-  cli.py                    # research-only commands
-tests/                      # fast offline tests
-examples/                   # synthetic fixture, not market evidence
-config/                     # manifests and eligibility, human reviewed
-docs/                       # architecture, research policy and roadmap
+  registry.py             # validates both manifest files
+  contracts.py            # point-in-time candle and forecast contracts
+  data.py                 # offline CSV import (not a data lake)
+  microstructure.py       # tested L1 quote and L2 snapshot helpers
+  decision.py             # research-only, no order sending
+  regime.py               # heuristic placeholder, not fitted HMM/HSMM
+  ensemble.py             # static baseline weights only
+  evaluation.py           # basic splits and return metric
+  experts/                # 2 baseline experts, optional Chronos-2 code
+tests/                    # offline / no model downloads
+docs/                     # research and operational controls
 ```
 
-## Pretrained model experiments
+## Wiring third-party projects
 
-Optionally install `pip install -e ".[forecast]"` in a separate environment. Model downloads, inference and GPU checks are **opt-in** and never performed by CI. For Chronos-2, first build a time-ordered historical `train_history`; initialize and call `fit(train_history)`, then pass later point-in-time `history` to `forecast(history, horizon)`. Check memory, frequency/calendar and training cutoff yourself before treating results as valid.
+1. Use `config/model_registry.yaml` and `config/component_registry.yaml`
+   as the **only selected** roster. No shadow list of older models.
+2. Install each heavy upstream in its own environment, pin repository revision
+   and exact checkpoint hash, and store licensing permissions privately.
+3. Implement each Expert adapter to produce a point-in-time
+   `Forecast` with an identical horizon and normalized fractional return.
+4. Add negative tests for stale quotes, symbols, invalid/missing weights,
+   unsupported frequencies, and training cutoffs.
+5. Persist out-of-fold predictions before quantowl / AutoGluon training.
+6. Use an independent deterministic risk gate for every trade intent.
+7. Do not merge performance claims without source data and full net-cost replay.
 
-## Contributing a new expert
+### Microstructure requirements
 
-1. Implement `expert_id` and `forecast(history, horizon) -> Forecast`.
-2. Never consume future observations, hidden broker data or testing labels.
-3. Return fractional **price return**, not an unlabelled price or probability.
-4. Add unit tests: stale cutoff, symbol mismatch, horizon, NaNs, missing weights, missing dependencies.
-5. Document official checkpoint, license/permission scope, dependency versions and resource footprint.
-6. Write a separate offline benchmark before claiming any benefit.
+For broker FX/CFDs use actual L1 Bid/Ask; `Quote` provides spread only.
+For exchange crypto with genuine size/depth levels, use `L2Snapshot` and
+then an adapted TLOB pipeline. No candle-to-book construction.
 
-## Branching and review
+### Reverso performance note
 
-Use small `feature/...` branches and focused PRs; run all tests and lint. Do not merge unverified experiments to main. Keep raw datasets, tokens, proprietary checkpoints and license emails outside the public repo.
+Its released 550K checkpoint requires CUDA-compatible GPU and specialized
+FlashFFTConv dependencies, despite its tiny parameter count. Record actual
+environment/memory requirements rather than inferring them from weight size.

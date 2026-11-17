@@ -1,94 +1,85 @@
 # A-nanTa
 
-**Research-first, multi-asset Super Ensemble AI infrastructure** for Forex, broker CFDs, metals and cryptocurrency.
+**Modular Super Ensemble AI Trading Research** for Forex, CFDs, cryptocurrency and metals.
 
-> **Project state: Bootstrap v0.1.0.** The Python research scaffold and a deterministic baseline ensemble are implemented. The seven foundation-model candidates are **NOT downloaded, benchmarked, or active as a production ensemble**. The only external-model adapter currently in code is an **optional** AutoGluon Chronos-2 path. Live broker execution is **not implemented or enabled**.
+**Project maturity: integration scaffold (not a working 7-model ensemble, not approved for live orders).**
+This repository contains a synthetic-data prototype, strict interfaces and selected upstream
+model/component manifests. No external checkpoint is committed or downloaded by CI.
 
-## Project mission
+## One selected stack, no shadow roster
 
-Reuse reputable open-source frameworks and pretrained checkpoints, connect diverse forecasting architectures behind a unified interface, and validate whether their combined predictions yield **incremental net trading edge**. Do not train a giant foundation model from scratch, and do not confuse model size with trading profitability.
+### Selected foundation checkpoints (7)
 
-## System at a glance
+| Expert | Approx. parameters | Why selected | Installation |
+|---|---:|---|---|
+| [EXAONE Finance 1.0](https://github.com/LGAI-Research/EXAONE-Forecast) | 202M | Specialized financial forecasting | Not installed |
+| [Reverso Small](https://github.com/shinfxh/reverso) | 0.55M | Tiny convolution/recurrent expert | Not installed |
+| [TimeH2O-v1](https://huggingface.co/h2oai/timeh2o-v1) | 108M | Probabilistic generalist | Not installed |
+| [Timestral 123M](https://github.com/mistralai/timestral) | 123M | Multivariate probabilistic covariates | Not installed |
+| [Chronos-2](https://github.com/amazon-science/chronos-forecasting) | 120M | General distribution forecasting | Optional adapter code, not tested with weights |
+| [TimesFM 3.0](https://github.com/google-research/timesfm) | 330M | Multivariate long-context forecasting | Not installed |
+| [TiRex-2](https://github.com/NX-AI/tirex) | 82.5M total | Recurrent/xLSTM diversity | Not installed |
 
-```text
-Historical market data (Forex / CFDs / Crypto / Metals)
-            |
- Quality, provenance, UTC normalization, leakage checks
-            |
-    Unified Candle / Forecast contracts
-            |
-  +---------+----------+----------+----------+
-  | Financial / OHLCV  | TS foundation models |
-  | EXAONE / Kronos    | Chronos / TimesFM    |
-  | Time-MoE / Toto    | TiRex                |
-  +---------+----------+----------+----------+
-            |
- Regime detector + out-of-fold predictions
-            |
- Calibrated meta-learner / dynamic gating [PLANNED]
-            |
-   Costs / risk / NO_TRADE / decision policy
-            |
- Event-driven backtest > paper > guarded live [PLANNED]
-```
+Approximate total: **966.05 million parameters** (sum of separately hosted checkpoints; not one giant network). See [model catalog](docs/MODEL_CATALOG.md) and [model registry](config/model_registry.yaml). These are **the entire selected foundation roster**; previous candidate sizes are not part of the plan.
 
-The v0.1.0 implementation runs two *deterministic baseline experts* and a heuristic regime router to verify interfaces and tests. These are **engineering controls, not demonstrated trading alpha**.
+### Selected domain components (6)
 
-## Quickstart (Python 3.11+)
+| Capability | Upstream | What we get |
+|---|---|---|
+| Regime detection | [regime-detection](https://github.com/Nabel7/regime-detection) | HMM / HSMM / sparse jump models |
+| Exchange L2 microstructure | [TLOB](https://github.com/LeonardoBerti00/TLOB) | Limit-order-book learning where genuine L2 is available |
+| Meta-labeling / purged CV | [quantowl](https://github.com/landtml/quantowl) | Triple barrier, meta-labeling, purging, diagnostics |
+| Master ensemble | [AutoGluon](https://github.com/autogluon/autogluon) | Stacking / automated model combination |
+| Trading and portfolio policy | [FinRL-X](https://github.com/AI4Finance-Foundation/FinRL-Trading) | Modular policy and allocation infrastructure |
+| Backtest / execution engine | [NautilusTrader](https://github.com/nautechsystems/nautilus_trader) | Event-driven multi-asset simulation and execution architecture |
+
+These packages are **selected dependencies, not installed or integrated** simply because they appear in the manifest. Read the [component registry](config/component_registry.yaml) and [integration plan](docs/ARCHITECTURE.md).
+
+**Market limitation:** L2/TLOB only for actual order-book venues, e.g. crypto exchanges. OTC FX/MT5 CFDs generally expose broker quotes rather than a centralized order book. Never synthesize book-depth inputs from candles.
+
+## Fast offline checks
+
+Python 3.11+:
 
 ```bash
-git clone https://github.com/ekjsnskkd-byte/A-nanTa.git
-cd A-nanTa
 python -m venv .venv
-# Activate .venv for your shell, then:
+# Activate your environment
 python -m pip install -e ".[dev]"
 python -m pytest -q
 python -m ruff check src tests
+ananta stack-status
 ananta validate-data --csv examples/synthetic_m1.csv
 ananta demo --csv examples/synthetic_m1.csv --round-trip-cost-bps 8
 ```
 
-The example file is **synthetic** and the CLI prints a **research-only illustrative signal**. It does not access a broker or place an order.
+- `stack-status` reads the selected manifest; **does not download or execute checkpoints**.
+- `demo` uses two deterministic baselines on **synthetic** market data, not the 7 foundation models; these signals have no demonstrated trading edge.
+- `src/ananta/microstructure.py` validates real L1 quotes / L2 books; `src/ananta/decision.py` provides a **research-only, fail-closed signal filter** without orders.
+- `src/ananta/experts/autogluon_chronos.py` is an optional, unverified Chronos-2 wrapper, not part of the core demo.
+- No broker secrets, live-order path, or pretrained weights in GitHub.
 
-### Optional pretrained experiment: Chronos-2
+## Delivery stages
 
-```bash
-python -m pip install -e ".[forecast]"
-```
+1. Normalize and validate real broker / exchange tick and L2 data, without Dukascopy.
+2. Add true inference adapters and versioned checkpoints for the 7 selected models.
+3. Run single-model, same-horizon walk-forward comparisons and OOF predictions.
+4. Use quantowl labels + AutoGluon stacking and a trained regime gate; use TLOB only when L2 exists.
+5. Validate **incremental net edge** vs individual models, after execution costs, on unseen markets and dates.
+6. Reproduce order-level fills and portfolio accounting with NautilusTrader.
+7. Paper / shadow test, independently approve limits and licenses, only then consider a separate guarded live system.
 
-`src/ananta/experts/autogluon_chronos.py` implements a lazy, optional AutoGluon Chronos-2 adapter. Its `fit(train_history)` method may download the official pretrained weights. **Training/validation windows and sufficient RAM/VRAM remain the operator's responsibility.** The adapter is not used in the default demo or CI.
+## Engineering and review
 
-## Candidate foundation model roster
+- [Architecture](docs/ARCHITECTURE.md)
+- [Model checkpoints and selection rationale](docs/MODEL_CATALOG.md)
+- [Delivery gates](docs/ROADMAP.md)
+- [Data sources and restrictions](docs/DATA_SOURCES.md)
+- [Validation protocol](docs/VALIDATION.md)
+- [Risk and execution boundaries](docs/EXECUTION_POLICY.md)
+- [Development](docs/DEVELOPMENT.md)
+- [Review checklist](docs/REVIEW_CHECKLIST.md)
+- [Dependency license notes](THIRD_PARTY.md)
 
-| Candidate | Primary strength | Integration state |
-|---|---|---|
-| EXAONE Finance 1.0 | Financial distribution specialist | Research candidate |
-| Kronos-base | OHLCV/candlestick specialist | Research candidate |
-| Chronos-2 | Probabilistic time-series forecasting | Optional AutoGluon adapter |
-| TimesFM 3.0 | Multivariate generalist | Research candidate, license gated |
-| Time-MoE (453M total; TimeMoE-200M) | Sparse MoE time-series model | Selected checkpoint candidate |
-| Toto 2.0 (313M) | Scalable probabilistic TS forecasts | Selected checkpoint candidate |
-| TiRex-2 | Recurrent/xLSTM diversity expert | Research candidate |
+**License governance:** Public model weight licenses may restrict commercial use or demonstrations involving real orders. User-provided authorizations must be checked by an operator for exact covered parties, weights and uses, and stored privately, not in this public repository.
 
-**Size selection:** Time-MoE 453M total and Toto 2.0 313M are the only selected sizes; the plan does not include larger size alternatives. **No "best trading model" has yet been proven.** Pretrained checkpoint weight availability and permissible uses must be reviewed independently of code licenses. Private email authorizations are not stored in this public repository.
-
-## Documents for technical review
-
-- [Architecture and component boundaries](docs/ARCHITECTURE.md)
-- [Implementation roadmap and acceptance gates](docs/ROADMAP.md)
-- [Model registry and licensing](docs/MODEL_CATALOG.md)
-- [Data sources and input contracts](docs/DATA_SOURCES.md)
-- [Evaluation and anti-leakage protocol](docs/VALIDATION.md)
-- [Execution safety and promotion criteria](docs/EXECUTION_POLICY.md)
-- [Integration and local development](docs/DEVELOPMENT.md)
-- [Current review checklist](docs/REVIEW_CHECKLIST.md)
-- [Architecture decision record](docs/adr/0001-modular-ensemble.md)
-- [Third-party dependency notes](THIRD_PARTY.md)
-
-## Current scope and explicit exclusions
-
-Implemented: importable Python package; strict timestamp/quote contracts; CSV validator; two baseline experts; simple regime heuristic; cost-aware NO_TRADE prototype; basic walk-forward split utility; spread-aware trade-return function; optional Chronos-2 adapter; tests and CI.
-
-Not yet implemented: external market-data collectors; live trained gating/meta-learner; regime-specific trained models; full multi-model foundation inference; true multi-asset portfolio simulator; broker execution; realistic order book / margin / swap; production model serving; profitable strategy.
-
-**This repo does not include third-party pretrained weights, proprietary market data, secrets, or commercial permissions.** A-nanTa source licensing has not been chosen; do not assume blanket reuse rights for the original repository code.
+A-nanTa is research software; no accuracy, trade expectancy or profitability is claimed.

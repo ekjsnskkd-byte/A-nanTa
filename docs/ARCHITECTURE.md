@@ -1,72 +1,94 @@
-# Architecture — A-nanTa Super Ensemble
+# A-nanTa — Technical Architecture
 
-## Design principles
+## Design decision
 
-1. **Composition over reinvention:** import third-party model packages and checkpoints via adapters; do not fork or vendor large upstream repositories by default.
-2. **Contracts before models:** all outputs align on symbol, timeframe, observation cutoff, target horizon and units. Reject mismatches.
-3. **Prediction is not policy:** forecasts, meta-learner, regime router, risk sizing and execution are separate modules.
-4. **Offline evidence before deployment:** out-of-fold temporal predictions feed the stacker; only walk-forward net results qualify models for promotion.
-5. **Asset-aware:** shared experts may be reused across assets but symbol-specific calibration, specs and costs remain separate.
-6. **Least privilege:** training jobs never receive broker credentials; live sending requires a separate deployable service and explicit enablement.
+Build one maintainable multi-asset Super Ensemble from separately hosted pretrained models.
+Reuse upstream open-source engines, not source-code copies. No large-model variants or
+separate challenger roster. Distinguish **selected upstream** from **integrated dependency**
+and from **calibrated production model**.
 
-## Layers
+## Planned processing graph
 
-| Layer | Contract | Choices | v0.1.0 state |
-|---|---|---|---|
-| Acquisition | timestamped source-tagged quotes/candles | MT5, HistData, TrueFX, FXCM, CryptoHFTData, OKX/Binance | Planned |
-| Canonical data | UTC, typed Candle, provenance & quality logs | Python / Parquet / Arrow | CSV contract implemented |
-| Base experts | Forecast(expected_return, horizon, observed_at) | EXAONE, Kronos, Chronos, TimesFM, Time-MoE, Toto, TiRex | 2 baselines; optional Chronos adapter |
-| Regime experts | probabilities over regimes with uncertainty | HMM, jump models, classifiers | Deterministic heuristic only |
-| Meta-ensemble | OOF forecasts -> calibrated predictive distribution | AutoGluon / custom stacking / MoE gate | Static weights prototype |
-| Decision | order intent + abstention + cost/risk checks | threshold, meta-labeling, portfolio risk | Research signal only |
-| Backtest | replay+fills+cash/margin accounting | NautilusTrader | Split/cost helpers only |
-| Deployment | paper trading then guarded broker adapter | MT5 / CCXT | Not implemented |
-| Audit | model / data / code snapshot + metrics | MLflow, Optuna, GitHub Actions | Basic CI only |
+```text
+Historically licensed quotes / bars / genuine exchange L2
+  -> source provenance + availability timestamp + closed-bar controls
+  -> per-market feature adapters
+      |-- foundation experts: 7 fixed checkpoints (config/model_registry.yaml)
+      |-- regime: regime-detection [UPSTREAM SELECTED]
+      |-- microstructure: broker L1 metrics / TLOB on genuine exchange L2 only
+  -> aligned, point-in-time OOF predictions
+      |-- quantowl labeling + purged CV [UPSTREAM SELECTED]
+      |-- AutoGluon tabular stacker + learned regime gating [UPSTREAM SELECTED]
+  -> calibrated aggregate prediction
+  -> proposal + abstain / cost filter (research-only code exists)
+  -> deterministic independent risk gate + portfolio sizing [PLANNED]
+  -> NautilusTrader event-driven simulation [UPSTREAM SELECTED]
+  -> paper trading -> separate guarded execution [PLANNED]
+```
 
-## Required canonical data
+## Contract boundaries
 
-- **UTC timestamps with timezone information**; market venue's local trading calendar stored separately.
-- Symbol and broker/exchange/instrument metadata, including contract size, quote currency, margin rules and precision.
-- Bid/Ask ticks whenever available; OHLCV candles can train models but **cannot substitute for tick-level fill data**.
-- Source identifiers, timestamps of availability, revision provenance, missing-data and duplication reports.
-- Strictly forward time: available_at <= inference_cutoff, and model targets start after the cutoff. Closed candles only.
+| Layer | Selected implementation | Current code state |
+|---|---|---|
+| Source / schema | Broker tick / exchange archives / UTC normalization | CSV reader and Candle contract only |
+| Foundation experts | EXAONE, Reverso, TimeH2O, Timestral, Chronos-2, TimesFM 3, TiRex-2 | Synthetic baseline experts; optional untested Chronos wrapper |
+| Regime | Nabel7/regime-detection: Gaussian HMM/HSMM/sparse jump | Heuristic test control only |
+| Microstructure | LeonardoBerti00/TLOB when genuine L2 exists | Tested L1 Quote and L2 Snapshot validation/imbalance code |
+| Labeling | quantowl | Not integrated |
+| Stacking | AutoGluon | Static weighted prototype, no learned stacker |
+| Decision / policy | FinRL-X design, quantowl meta-labeling | Fail-closed `assess_forecast` signal proposal, no order sizing |
+| Sim / execution | NautilusTrader | Basic cost return and walk-forward functions only |
+| Audit | MLflow proposed later | CI tests and Git commit provenance |
 
-`src/ananta/contracts.py` is a minimal application contract, not yet the full Tick/OrderBook schema.
+## Canonical signals
 
-## Forecast contract
+`Forecast(expert_id, symbol, timeframe, observed_at, horizon, expected_return)`
+returns a **fractional price return** over a fixed horizon; not a predicted bid/ask
+execution PnL. Before stacking, normalize all model outputs to a consistent target,
+target horizon, cutoff, closed-bar convention, and quote denomination. Never average
+an asset price forecast with a return forecast or mixing timeframes.
 
-Each prediction MUST identify:
-- expert_id (stable); symbol; timeframe; observed_at (UTC aware); horizon (bars).
-- expected_return in **fractional return units**, e.g. 0.001 = 10 bps.
-- Future extensions: quantiles, direction probabilities, uncertainty, latency, model hash, training cutoff, currency normalization.
+`Quote`: UTC-aware symbol, bid, ask, spread. `L2Snapshot`: exchange,
+timestamp and actual bid/ask price/size levels, sorted by price. The presence of
+a quote never implies an actual consolidated order book.
 
-Do not average raw price forecasts across different underlying quotes or horizons. Adapters must normalize to the contract before ensembling.
+## Causal training
 
-## Meta-learning design
+- Fit preprocessing and regime features *inside* each walk-forward fold.
+- Use purging/embargo when forward targets overlap fold boundaries.
+- Construct stacked training rows only from out-of-fold base predictions.
+- Feed the learned gating network only inputs available at `observed_at`.
+- Cost and execution assumptions are broker/venue-specific and immutable per run.
+- Benchmark each model's marginal contribution to after-cost portfolio results.
 
-1. Generate **out-of-fold time-ordered forecasts** for every expert on identical timestamps.
-2. Validate each expert independently for calibration, cost-adjusted utility and complementary error structure.
-3. Fit a stacking model on historical OOF forecasts plus only available-at-decision market state.
-4. Dynamic gate may condition on regime probabilities, uncertainty, recent drift and spread; never on realized outcomes of the target horizon.
-5. Forecast aggregate must pass abstention, transaction cost, exposure limits and market-state checks.
+## Production boundary
 
-Static regime weights in `src/ananta/ensemble.py` demonstrate routing only. They are **not learned and not calibrated**. Fit/transform split and temporal embargo are mandatory before adding trained gating.
+The research signal policy is deliberately **not** execution code. A separate
+deterministic risk service must control exposure, free margin, drawdown,
+stop-out estimates, stale quotes, missing models, kill switch and reconciliation.
+No RL or foundation model bypasses this service. Real trading requires operator
+approval and validated vendor permissions.
 
-## Research-to-production promotion
+## Operational design
 
-Candidate -> reproducible dataset snapshot -> train -> walk-forward OOF -> holdout -> simulation with broker-specific costs -> paper shadow -> risk-controlled live promotion. Every stage records Git SHA, data hash, checkpoint SHA, license approval and metrics. Rollback is mandatory.
+Heavy models run in isolated environments; external weights are version-pinned
+with checksums in private artifact storage. CPU-based risk and order execution do
+not wait for GPU inference on each tick. Predictions are cached by model hash,
+symbol, horizon and observed timestamp. A missing/late prediction fails closed.
 
-## Performance constraints
+## File boundaries
 
-Large pretrained models should run in **batched asynchronous inference** at appropriate candle horizons. Do not block sub-second order execution waiting for a multi-billion parameter model on each tick. Cache predictions by (model hash, instrument, horizon, asof) and set maximum prediction age.
+- `src/ananta/contracts.py`: Candle and Forecast typed contracts
+- `src/ananta/microstructure.py`: L1/L2 validators and actual L2 imbalance
+- `src/ananta/registry.py`: read-only selection validation, no auto-installs
+- `src/ananta/decision.py`: research-only proposal with abstention
+- `src/ananta/regime.py`: deterministic QA heuristic
+- `src/ananta/ensemble.py`: static QA ensemble
+- `src/ananta/evaluation.py`: preliminary expanding split and quote cost utilities
+- `src/ananta/experts/`: deterministic baselines, optional Chronos wrapper
 
-Separate forecast-serving GPU workers from deterministic risk/execution CPU workers.
+## Scope note
 
-## Architecture boundaries
-
-- `experts/`: immutable forecasters; zero broker calls.
-- `data.py`: offline CSV adapter with validation.
-- `regime.py`: baseline state detector.
-- `ensemble.py`: transparent weighting and candidate decision, no execution.
-- `evaluation.py`: preliminary walk-forward and round-trip fill cost utilities.
-- Future `backtest/`, `risk/`, `execution/`, `serving/` will have their own versioned APIs and independent tests.
+Upstream TLOB, FinRL-X, regime-detection, quantowl, AutoGluon stacking and
+NautilusTrader are **not yet vendored, installed or exercised** in current tests.
+Their upstream licenses and data requirements remain independent obligations.

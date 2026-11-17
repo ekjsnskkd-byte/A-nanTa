@@ -1,41 +1,48 @@
-# Model catalog — candidates, not installed models
+# Selected Model Catalog — 2026-11-17
 
-This is a shortlist, not an accuracy ranking or a claim of trading edge. Review **model card, checkpoint version and weight license** before use. Private permissions from vendors are owned and stored by the operator outside this public repo. They have not been independently inspected here.
+**Seven selected pretrained forecasting checkpoints, no alternative variants.**
+All are **selected but not installed**. A GitHub model card / source alone cannot
+prove net-trading performance. The selection is guided by published forecasting
+results, architecture diversity and approximate deployment cost.
 
-| Candidate | Official project | Primary signal | Current integration | License workflow |
-|---|---|---|---|---|
-| EXAONE Finance 1.0 | https://github.com/LGAI-Research/EXAONE-Forecast | Financial-specialist forecasting | Planned | Weight license NC; verify written exception |
-| Kronos-base | https://github.com/shiyu-coder/Kronos | OHLCV/candle sequence | Planned | Verify selected official checkpoint model card |
-| Chronos-2 | https://github.com/amazon-science/chronos-forecasting | Quantile/probabilistic forecasting | Optional AutoGluon adapter | Apache 2.0 checkpoint terms; record hash |
-| TimesFM 3.0 | https://github.com/google-research/timesfm | Native multivariate forecasting | Planned | Self-hosted pretrained weights NC/non-production by default; verify authorized exception |
-| Time-MoE (453M total; TimeMoE-200M checkpoint) | https://github.com/Time-MoE/Time-MoE | Sparse time-series MoE | Planned | Verify checkpoint terms |
-| Toto 2.0 (313M) | https://github.com/DataDog/toto | General probabilistic forecasting | Planned | Verify checkpoint terms |
-| TiRex-2 | https://github.com/NX-AI/tirex | xLSTM/recurrent diversity | Planned | Verify checkpoint terms |
+| Model | Checkpoint | Parameters | Role | Integration |
+|---|---|---:|---|---|
+| EXAONE Finance 1.0 | https://huggingface.co/LG-AI-Research/EXAONE-Finance-1.0 | 202M | Financial distribution specialist | Planned |
+| Reverso Small | https://huggingface.co/shinfxh/reverso-small | 0.55M | Long-convolution/recurrent | Planned; requires CUDA and special kernels upstream |
+| TimeH2O-v1 | https://huggingface.co/h2oai/timeh2o-v1 | 108M | General probabilistic | Planned |
+| Timestral-123M | https://huggingface.co/mistralai/Timestral-123M | 123M | Multivariate probabilistic | Planned |
+| Chronos-2 | https://huggingface.co/amazon/chronos-2 | 120M | Distribution / covariates | Optional adapter code only |
+| TimesFM 3.0 | https://huggingface.co/google/timesfm-3.0-pytorch | 330M | General multivariate | Planned |
+| TiRex-2 | https://huggingface.co/NX-AI/TiRex-2 | 82.5M total | Recurrent/xLSTM | Planned |
 
-**Important:** Licensing of GitHub source code != licensing of downloaded model weights != licensing of training data. An email permission can be valid for specific named uses, versions and entities only; check the stated scope before a live classroom demonstration.
+**Total:** about 966.05M parameters across seven independent checkpoints. No
+corresponding hardware claim follows from weight count alone; Reverso requires
+CUDA-specific kernels and models have different dependencies, caches and contexts.
 
-## Selection criteria
+## Selection caveats
 
-- Does this expert improve **net ensemble expectancy** on untouched walk-forward periods?
-- Does it contribute error diversity beyond current members?
-- Is its predicted target aligned to our common forecast contract?
-- Is it reliable across Forex, broker CFDs, metals and crypto instruments?
-- Is CPU/GPU memory and 99th percentile prediction latency viable for the chosen timeframe?
-- Are checkpoint provenance, license and usable dataset clear?
+- Some general-purpose benchmark leaders have not been compared against all
+  these models on *the same* financial datasets.
+- Published FinVerse evidence supports EXAONE Finance's financial applicability;
+  it is not an order-fill simulation for real FX/CFD accounts.
+- Reverso Small is 550K parameters, with public checkpoint. Upstream indicates
+  the larger Reverso checkpoints are not released; do not silently swap.
+- A forecasting model is not a calibrated trading policy or an execution model.
+- No pretrained weight, vendor permission email, or private market data is kept in Git.
 
-## Installation governance
+## Licenses
 
-- No implicit model downloads during `pip install`, `pytest` or `ananta demo`.
-- Separate deployment environment per heavy framework to avoid Torch/JAX dependency collisions.
-- Pin upstream versions and checkpoint hashes **after** validated experiments.
-- Keep pretrained weights in local object storage/cache ignored by Git. Do not vendor models into `src`.
-- Track model eligibility as: `candidate` -> `research_allowed` -> `benchmark_approved` -> `production_approved`.
-- Store any email grants privately; commit only a nonsensitive approval ID and reviewed status.
+EXAONE Finance, TimeH2O-v1 and TimesFM 3.0 carry checkpoint-specific restrictions
+under default public terms. User-reported permission letters are not independently
+verified and must be reviewed for the precise deployment, including educational
+demonstrations with real money. Timestral weight terms differ from code's Apache 2.0.
 
-## Registered baseline experts
+Record approved entitlement IDs and exact weight revisions **privately**. A license
+for inference code does not grant rights to a checkpoint or training dataset.
 
-`momentum` and `mean_reversion` in `experts/baselines.py` are low-cost deterministic controls for integration/QA. Their apparent PnL must never be used as evidence of an edge without proper backtesting.
+## Required benchmarks to certify suitability
 
-## Fixed model size selection
-
-Use **Time-MoE 453M total parameters** (checkpoint commonly labeled TimeMoE-200M) and **Toto 2.0 313M** as the selected models for A-nanTa. No alternate size tiers or large-model challenger program are part of the approved scope. Models are not yet downloaded or benchmarked. Verify checkpoint IDs at installation before pinning exact revisions.
+Same time ranges, symbols, forecast horizon, sampling, broker costs, and as-of
+data for each individual model; evaluate marginal ensemble gain and error
+correlation. Distinguish outright zero-shot, optional fine-tuning and stacked
+models. All promotion requires untouched time holdouts and net PnL.
