@@ -10,7 +10,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: ananta-ci-\${{ github.ref }}
+  group: ananta-ci-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -25,7 +25,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
-          python-version: \${{ matrix.python-version }}
+          python-version: ${{ matrix.python-version }}
           cache: pip
           cache-dependency-path: pyproject.toml
       - name: Install small research core
