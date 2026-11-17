@@ -21,7 +21,7 @@ prove it. No unrequested model variants or challenger inventories.
    revisions. Keep each runtime isolated and source weights outside GitHub.
 2. Build market feed import paths (MT5 broker bid/ask ticks and independent FX,
    metals and crypto sources; **no Dukascopy**).
-3. Fit the selected regime-detection library within chronological folds.
+3. Fit the selected jumpmodels library within chronological folds.
 4. Train TLOB on venue L2 data where actually supplied; OTC feed uses only real
    quote/spread metrics, never synthetic levels.
 5. Use quantowl to generate triple-barrier/meta labels and purged split logic.

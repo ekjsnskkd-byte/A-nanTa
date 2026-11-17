@@ -32,7 +32,7 @@ Historically licensed quotes / bars / genuine exchange L2
 |---|---|---|
 | Source / schema | Broker tick / exchange archives / UTC normalization | CSV reader and Candle contract only |
 | Foundation experts | EXAONE, Reverso, TimeH2O, Timestral, Chronos-2, TimesFM 3, TiRex-2 | Synthetic baseline experts; optional untested Chronos wrapper |
-| Regime | Nabel7/jumpmodels: Discrete / continuous / sparse statistical jump | Heuristic test control only |
+| Regime | jumpmodels: discrete / continuous / sparse statistical jump | Heuristic test control only |
 | Microstructure | LeonardoBerti00/TLOB when genuine L2 exists | Tested L1 Quote and L2 Snapshot validation/imbalance code |
 | Labeling | quantowl | Not integrated |
 | Stacking | AutoGluon | Static weighted prototype, no learned stacker |
