@@ -1,5 +1,5 @@
 schema_version: 2
-purpose: "Seven selected foundation checkpoints; selection does not mean installed, validated, or licensed."
+purpose: "Selected foundation checkpoints and representation models; selection does not mean installed, validated, or licensed."
 selection_date: "2026-11-17"
 production_ready: false
 models:
@@ -59,3 +59,11 @@ models:
     status: selected_not_installed
     adapter: planned
     rights: checkpoint_terms_review_required
+  - id: moment_1_small
+    checkpoint: "AutonLab/MOMENT-1-small"
+    role: pretrained_time_series_representation
+    source: "https://huggingface.co/AutonLab/MOMENT-1-small"
+    status: selected_not_installed
+    adapter: planned
+    rights: checkpoint_terms_review_required
+    note: "Embedding expert for motif similarity and pattern retrieval; no native calibrated P(up) output. Does not replace original forecasting roster."
