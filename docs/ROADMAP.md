@@ -30,7 +30,7 @@ The repository is a research scaffold. A milestone is complete ONLY when its acc
 - Compare error correlations before constructing the meta-learner.
 
 ### Third sprint
-- Scale to Time-MoE/Toto/TiRex if cheaper models show measurable complementary value.
+- Integrate the selected Time-MoE 453M-total and Toto 2.0 313M checkpoints alongside TiRex if they show complementary value.
 - Integrate walk-forward stacker and learned gate, calibrated abstention.
 - Add broker fill simulation and run at least one untouched holdout.
 

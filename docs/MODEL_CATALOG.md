@@ -8,8 +8,8 @@ This is a shortlist, not an accuracy ranking or a claim of trading edge. Review 
 | Kronos-base | https://github.com/shiyu-coder/Kronos | OHLCV/candle sequence | Planned | Verify selected official checkpoint model card |
 | Chronos-2 | https://github.com/amazon-science/chronos-forecasting | Quantile/probabilistic forecasting | Optional AutoGluon adapter | Apache 2.0 checkpoint terms; record hash |
 | TimesFM 3.0 | https://github.com/google-research/timesfm | Native multivariate forecasting | Planned | Self-hosted pretrained weights NC/non-production by default; verify authorized exception |
-| Time-MoE | https://github.com/Time-MoE/Time-MoE | Sparse time-series MoE | Planned | Verify checkpoint terms |
-| Toto 2.0 | https://github.com/DataDog/toto | General probabilistic forecasting | Planned | Verify checkpoint terms |
+| Time-MoE (453M total; TimeMoE-200M checkpoint) | https://github.com/Time-MoE/Time-MoE | Sparse time-series MoE | Planned | Verify checkpoint terms |
+| Toto 2.0 (313M) | https://github.com/DataDog/toto | General probabilistic forecasting | Planned | Verify checkpoint terms |
 | TiRex-2 | https://github.com/NX-AI/tirex | xLSTM/recurrent diversity | Planned | Verify checkpoint terms |
 
 **Important:** Licensing of GitHub source code != licensing of downloaded model weights != licensing of training data. An email permission can be valid for specific named uses, versions and entities only; check the stated scope before a live classroom demonstration.
@@ -35,3 +35,7 @@ This is a shortlist, not an accuracy ranking or a claim of trading edge. Review 
 ## Registered baseline experts
 
 `momentum` and `mean_reversion` in `experts/baselines.py` are low-cost deterministic controls for integration/QA. Their apparent PnL must never be used as evidence of an edge without proper backtesting.
+
+## Fixed model size selection
+
+Use **Time-MoE 453M total parameters** (checkpoint commonly labeled TimeMoE-200M) and **Toto 2.0 313M** as the selected models for A-nanTa. No alternate size tiers or large-model challenger program are part of the approved scope. Models are not yet downloaded or benchmarked. Verify checkpoint IDs at installation before pinning exact revisions.

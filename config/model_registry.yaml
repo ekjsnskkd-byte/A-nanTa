@@ -27,12 +27,16 @@ models:
     checkpoint: "google/timesfm-3.0-pytorch"
     commercial_rights: private_grant_verification_required
   - id: time_moe
+    selected_size: "453M total parameters"
+    selected_checkpoint_candidate: "Maple728/TimeMoE-200M"
     project: "https://github.com/Time-MoE/Time-MoE"
     role: sparse_mixture_of_experts
     adapter: planned
     checkpoint: unpinned
     commercial_rights: checkpoint_review_required
   - id: toto2
+    selected_size: "313M parameters"
+    selected_checkpoint_candidate: "Datadog/Toto-2.0-313m"
     project: "https://github.com/DataDog/toto"
     role: probabilistic_diversity
     adapter: planned

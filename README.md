@@ -66,11 +66,11 @@ python -m pip install -e ".[forecast]"
 | Kronos-base | OHLCV/candlestick specialist | Research candidate |
 | Chronos-2 | Probabilistic time-series forecasting | Optional AutoGluon adapter |
 | TimesFM 3.0 | Multivariate generalist | Research candidate, license gated |
-| Time-MoE | Sparse MoE time-series model | Research candidate |
-| Toto 2.0 | Scalable probabilistic TS forecasts | Research candidate |
+| Time-MoE (453M total; TimeMoE-200M) | Sparse MoE time-series model | Selected checkpoint candidate |
+| Toto 2.0 (313M) | Scalable probabilistic TS forecasts | Selected checkpoint candidate |
 | TiRex-2 | Recurrent/xLSTM diversity expert | Research candidate |
 
-**No "best trading model" has yet been proven.** Pretrained checkpoint weight availability and permissible uses must be reviewed independently of code licenses. Private email authorizations are not stored in this public repository.
+**Size selection:** Time-MoE 453M total and Toto 2.0 313M are the only selected sizes; the plan does not include larger size alternatives. **No "best trading model" has yet been proven.** Pretrained checkpoint weight availability and permissible uses must be reviewed independently of code licenses. Private email authorizations are not stored in this public repository.
 
 ## Documents for technical review
 
