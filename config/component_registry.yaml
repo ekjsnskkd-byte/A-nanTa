@@ -36,3 +36,8 @@ components:
     license: LGPL-3.0
     status: selected_not_integrated
     note: "Live execution remains separate and disabled. Review LGPL obligations on distribution."
+  - id: online_change_point
+    upstream: "https://github.com/hildensia/bayesian_changepoint_detection"
+    technology: "Bayesian Online Change Point Detection (BOCPD): run-length posterior and recent distribution-shift probability"
+    status: selected_not_integrated
+    note: "Complement to jumpmodels: detect changes, not classify regime labels. Verify library maintenance, license and streaming API before implementation; no future observations in online scores."
