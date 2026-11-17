@@ -1,0 +1,38 @@
+schema_version: 1
+purpose: "One selected upstream per capability; no extra model size tiers or challenger roster"
+components:
+  - id: regime
+    upstream: "https://github.com/Nabel7/regime-detection"
+    technology: "Gaussian HMM, HSMM and Sparse Jump Model"
+    license: MIT
+    status: selected_not_integrated
+    note: "Fit only inside the training window; the current heuristic is a test control."
+  - id: microstructure
+    upstream: "https://github.com/LeonardoBerti00/TLOB"
+    technology: "TLOB with real L2 limit order book"
+    license: MIT
+    status: selected_not_integrated
+    note: "Crypto or exchange L2 only; use L1 quote metrics for OTC FX/CFDs. No synthetic LOB."
+  - id: meta_labeling
+    upstream: "https://github.com/landtml/quantowl"
+    technology: "Triple barrier, meta-labeling, purged validation, sizing diagnostics"
+    license: MIT
+    status: selected_not_integrated
+  - id: master_ensemble
+    upstream: "https://github.com/autogluon/autogluon"
+    technology: "Tabular stacked meta-learner and time-series weighted ensembles"
+    license: Apache-2.0
+    status: selected_optional_chronos_only
+    note: "External model forecasts need a common OOF prediction table."
+  - id: portfolio_policy
+    upstream: "https://github.com/AI4Finance-Foundation/FinRL-Trading"
+    technology: "Modular trading policy and portfolio weight contract"
+    license: Apache-2.0
+    status: selected_not_integrated
+    note: "Do not deploy RL policy until validated with broker-specific costs and risk guards."
+  - id: backtest_execution
+    upstream: "https://github.com/nautechsystems/nautilus_trader"
+    technology: "Event-driven quote/tick/book backtest, risk and execution"
+    license: LGPL-3.0
+    status: selected_not_integrated
+    note: "Live execution remains separate and disabled. Review LGPL obligations on distribution."

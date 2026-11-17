@@ -1,50 +1,61 @@
-schema_version: 1
-purpose: "Candidate roster; no checkpoint is downloaded by this configuration"
-default_mode: research
+schema_version: 2
+purpose: "Seven selected foundation checkpoints; selection does not mean installed, validated, or licensed."
+selection_date: "2026-11-17"
+production_ready: false
 models:
   - id: exaone_finance_1
-    project: "https://github.com/LGAI-Research/EXAONE-Forecast"
-    role: financial_specialist
+    checkpoint: "LG-AI-Research/EXAONE-Finance-1.0"
+    parameters_m: 202
+    role: financial_forecast
+    source: "https://github.com/LGAI-Research/EXAONE-Forecast"
+    status: selected_not_installed
     adapter: planned
-    checkpoint: unpinned
-    commercial_rights: private_grant_verification_required
-  - id: kronos_base
-    project: "https://github.com/shiyu-coder/Kronos"
-    role: financial_candlestick
+    rights: private_permission_scope_must_be_verified
+  - id: reverso_small
+    checkpoint: "shinfxh/reverso-small"
+    parameters_m: 0.55
+    role: lightweight_convolution_recurrent
+    source: "https://github.com/shinfxh/reverso"
+    status: selected_not_installed
     adapter: planned
-    checkpoint: unpinned
-    commercial_rights: checkpoint_review_required
+    rights: checkpoint_terms_review_required
+  - id: timeh2o_v1
+    checkpoint: "h2oai/timeh2o-v1"
+    parameters_m: 108
+    role: probabilistic_forecast
+    source: "https://huggingface.co/h2oai/timeh2o-v1"
+    status: selected_not_installed
+    adapter: planned
+    rights: private_permission_scope_must_be_verified
+  - id: timestral_123m
+    checkpoint: "mistralai/Timestral-123M"
+    parameters_m: 123
+    role: multivariate_probabilistic
+    source: "https://github.com/mistralai/timestral"
+    status: selected_not_installed
+    adapter: planned
+    rights: modified_mit_model_card_review
   - id: chronos2
-    project: "https://github.com/amazon-science/chronos-forecasting"
-    role: probabilistic_generalist
-    adapter: optional_autogluon_code
     checkpoint: "amazon/chronos-2"
-    commercial_rights: checkpoint_review_required
+    parameters_m: 120
+    role: probabilistic_forecast
+    source: "https://github.com/amazon-science/chronos-forecasting"
+    status: selected_not_installed
+    adapter: optional_autogluon_code_untested
+    rights: checkpoint_terms_review_required
   - id: timesfm3
-    project: "https://github.com/google-research/timesfm"
-    role: multivariate_generalist
-    adapter: planned
     checkpoint: "google/timesfm-3.0-pytorch"
-    commercial_rights: private_grant_verification_required
-  - id: time_moe
-    selected_size: "453M total parameters"
-    selected_checkpoint_candidate: "Maple728/TimeMoE-200M"
-    project: "https://github.com/Time-MoE/Time-MoE"
-    role: sparse_mixture_of_experts
+    parameters_m: 330
+    role: multivariate_forecast
+    source: "https://github.com/google-research/timesfm"
+    status: selected_not_installed
     adapter: planned
-    checkpoint: unpinned
-    commercial_rights: checkpoint_review_required
-  - id: toto2
-    selected_size: "313M parameters"
-    selected_checkpoint_candidate: "Datadog/Toto-2.0-313m"
-    project: "https://github.com/DataDog/toto"
-    role: probabilistic_diversity
-    adapter: planned
-    checkpoint: unpinned
-    commercial_rights: checkpoint_review_required
+    rights: private_permission_scope_must_be_verified
   - id: tirex2
-    project: "https://github.com/NX-AI/tirex"
-    role: recurrent_diversity
+    checkpoint: "NX-AI/TiRex-2"
+    parameters_m: 82.5
+    role: recurrent_xlstm_forecast
+    source: "https://github.com/NX-AI/tirex"
+    status: selected_not_installed
     adapter: planned
-    checkpoint: unpinned
-    commercial_rights: checkpoint_review_required
+    rights: checkpoint_terms_review_required
