@@ -1,9 +1,9 @@
-from datetime import datetime, timedelta, timezone
+from datetime import timedelta
 from pathlib import Path
 
 import pytest
 
-from ananta.contracts import Candle, Forecast
+from ananta.contracts import Forecast
 from ananta.data import read_ohlcv_csv
 from ananta.ensemble import WeightedEnsemble
 from ananta.experts.baselines import MeanReversionBaseline, MomentumBaseline

@@ -1,0 +1,46 @@
+schema_version: 1
+purpose: "Candidate roster; no checkpoint is downloaded by this configuration"
+default_mode: research
+models:
+  - id: exaone_finance_1
+    project: "https://github.com/LGAI-Research/EXAONE-Forecast"
+    role: financial_specialist
+    adapter: planned
+    checkpoint: unpinned
+    commercial_rights: private_grant_verification_required
+  - id: kronos_base
+    project: "https://github.com/shiyu-coder/Kronos"
+    role: financial_candlestick
+    adapter: planned
+    checkpoint: unpinned
+    commercial_rights: checkpoint_review_required
+  - id: chronos2
+    project: "https://github.com/amazon-science/chronos-forecasting"
+    role: probabilistic_generalist
+    adapter: optional_autogluon_code
+    checkpoint: "amazon/chronos-2"
+    commercial_rights: checkpoint_review_required
+  - id: timesfm3
+    project: "https://github.com/google-research/timesfm"
+    role: multivariate_generalist
+    adapter: planned
+    checkpoint: "google/timesfm-3.0-pytorch"
+    commercial_rights: private_grant_verification_required
+  - id: time_moe
+    project: "https://github.com/Time-MoE/Time-MoE"
+    role: sparse_mixture_of_experts
+    adapter: planned
+    checkpoint: unpinned
+    commercial_rights: checkpoint_review_required
+  - id: toto2
+    project: "https://github.com/DataDog/toto"
+    role: probabilistic_diversity
+    adapter: planned
+    checkpoint: unpinned
+    commercial_rights: checkpoint_review_required
+  - id: tirex2
+    project: "https://github.com/NX-AI/tirex"
+    role: recurrent_diversity
+    adapter: planned
+    checkpoint: unpinned
+    commercial_rights: checkpoint_review_required
