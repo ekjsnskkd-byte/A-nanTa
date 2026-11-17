@@ -1,15 +1,13 @@
-# Agent working agreement
+# A-nanTa agent instructions
 
-This repository is A-nanTa: a modular Super Ensemble AI platform for research in Forex, CFDs, crypto and metals.
+**Single research scope:** [docs/QUANT_MODEL_PLAN.md](docs/QUANT_MODEL_PLAN.md). Use exactly the 8 selected pretrained experts in [config/model_registry.yaml](config/model_registry.yaml) and 7 Quant methods in [config/component_registry.yaml](config/component_registry.yaml), without extra rosters.
 
-## Operating rules
-1. Work only on the exact requested scope; do not silently widen the task.
-2. Inspect current code and status before changes; report blockers precisely.
-3. Separate **implemented**, **optional**, **planned**, and **tested**. Never invent metrics or successful runs.
-4. Reuse maintained, legally authorized upstream frameworks and checkpoints rather than recreating models.
-5. No look-ahead in features, targets, walk-forward validation or meta-stacking.
-6. Keep an immutable data/model/run manifest, point-in-time cutoffs and comparable trading costs for evidence.
-7. No live broker execution unless explicitly requested and a separate reviewed risk system exists.
-8. Keep secret credentials, model weights, vendor emails and market data out of Git.
-9. Review and run tests before commit; only merge when specifically instructed.
-10. Prefer transparent minimal changes; provide commit SHA and explain what remains incomplete.
+1. Do only what the user requested; inspect files before modifications.
+2. Do not add RL portfolio policies, unrelated model candidates or autonomous trading systems.
+3. Distinguish selected, installed, fitted, tested and production-ready states.
+4. No future data in features, regime probabilities, historical neighbors, calibration or out-of-sample tests.
+5. Evaluate market predictions and entry/exit after broker-specific bid/ask costs and realistic fill assumptions.
+6. Do not claim profit or accuracy from synthetic fixtures or source publications.
+7. Keep market data, model weights, permissions and credentials outside Git.
+8. No live broker execution without separate authorization and reviewed risk controls.
+9. Run tests where tooling permits; disclose unverified checks.

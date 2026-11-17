@@ -1,4 +1,4 @@
-"""Validate selected upstream components; configuration is not an installation."""
+"""Validate the exact approved research roster; selection does not install models."""
 
 from __future__ import annotations
 
@@ -6,6 +6,15 @@ from dataclasses import dataclass
 from pathlib import Path
 
 import yaml
+
+PRETRAINED_IDS = frozenset({
+    "exaone_finance_1", "reverso_small", "timeh2o_v1", "timestral_123m",
+    "chronos2", "timesfm3", "tirex2", "moment_1_small",
+})
+QUANT_IDS = frozenset({
+    "ms_ar", "kalman_trend", "egarch", "statistical_jump_model",
+    "bocpd", "historical_pattern_matching", "first_passage",
+})
 
 
 @dataclass(frozen=True)
@@ -32,21 +41,17 @@ def _read(path: str | Path, key: str) -> tuple[dict, ...]:
 
 
 def load_selections(model_path: str | Path, component_path: str | Path) -> Selection:
-    """Read the active selection only. No downloads, imports or model execution."""
+    """Read only the approved selection; never download or execute weights."""
     models = _read(model_path, "models")
     components = _read(component_path, "components")
-    if len(models) != 7 or len(components) != 6:
-        raise ValueError("expected 7 selected foundation models and 6 selected components")
+    if {m["id"] for m in models} != PRETRAINED_IDS:
+        raise ValueError("registry must contain exactly 8 approved pretrained models")
+    if {c["id"] for c in components} != QUANT_IDS:
+        raise ValueError("registry must contain exactly 7 approved quant methods")
     for model in models:
         if model.get("status") != "selected_not_installed" or not model.get("checkpoint"):
-            raise ValueError("models must be uninstalled candidates with checkpoint IDs")
-        if not isinstance(model.get("parameters_m"), (int, float)):
-            raise ValueError("parameter count missing")
-        if model["parameters_m"] <= 0:
-            raise ValueError("parameter count must be positive")
+            raise ValueError("pretrained models must be selected but not installed")
     for component in components:
-        if not str(component.get("status", "")).startswith("selected_"):
-            raise ValueError("unapproved component state")
-        if not component.get("upstream"):
-            raise ValueError("missing upstream project URL")
+        if component.get("status") != "selected_not_integrated" or not component.get("upstream"):
+            raise ValueError("quant methods must be selected but not integrated")
     return Selection(models, components)

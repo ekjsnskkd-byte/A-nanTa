@@ -14,7 +14,7 @@ def test_stack_status_reads_selected_roster():
         text=True, capture_output=True, check=True,
     )
     status = json.loads(proc.stdout)
-    assert status["foundation_models_selected"] == 7
-    assert status["upstream_components_selected"] == 6
+    assert status["pretrained_models_selected"] == 8
+    assert status["quant_methods_selected"] == 7
     assert status["checkpoint_weights_installed_by_this_command"] == 0
     assert status["research_only"] is True

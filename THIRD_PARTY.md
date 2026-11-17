@@ -1,38 +1,9 @@
-# Selected third-party projects, weights & licenses
+# Third-party model and software use
 
-**No selected upstream source code, model weights, market data or permission
-letters are copied into A-nanTa.** These are external integration targets.
+No external model weights, third-party source code, private permissions or market data are committed to A-nanTa.
 
-## Seven selected pretrained weights
+**Approved pretrained checkpoints (8):** EXAONE Finance 1.0, Reverso Small, TimeH2O-v1, Timestral-123M, Chronos-2, TimesFM 3.0, TiRex-2, MOMENT-1 Small. Refer to [config/model_registry.yaml](config/model_registry.yaml) for exact upstream URLs and per-checkpoint rights-review flags.
 
-| Model | Upstream | License-specific attention |
-|---|---|---|
-| EXAONE Finance | https://huggingface.co/LG-AI-Research/EXAONE-Finance-1.0 | Non-commercial default weights; written operator grant must cover actual use |
-| Reverso Small | https://huggingface.co/shinfxh/reverso-small | Verify checkpoint terms and CUDA dependencies |
-| TimeH2O-v1 | https://huggingface.co/h2oai/timeh2o-v1 | H2O non-commercial weight license; verify written exception |
-| Timestral-123M | https://huggingface.co/mistralai/Timestral-123M | Modified MIT model license, separate from Apache code |
-| Chronos-2 | https://huggingface.co/amazon/chronos-2 | Verify selected checkpoint revision/license |
-| TimesFM 3.0 | https://huggingface.co/google/timesfm-3.0-pytorch | Non-commercial model weights by default; verify written exception |
-| TiRex-2 | https://huggingface.co/NX-AI/TiRex-2 | Verify selected checkpoint revision/license |
+**Approved Quant model/method sources (7):** statsmodels MS-AR; statsmodels Kalman State-Space; arch EGARCH; jumpmodels; Bayesian Online Change Point Detection; STUMPY/tslearn-style historical matching; SciPy-assisted First-Passage implementation. Refer to [config/component_registry.yaml](config/component_registry.yaml) for source links.
 
-## Six chosen software components
-
-| Component | Upstream | Reported source license |
-|---|---|---|
-| Jump model regime detection | https://github.com/Yizhan-Oliver-Shu/jump-models | Apache 2.0 |
-| L2 Microstructure | https://github.com/LeonardoBerti00/TLOB | MIT |
-| Meta-labeling/CV | https://github.com/landtml/quantowl | MIT |
-| Ensemble | https://github.com/autogluon/autogluon | Apache 2.0 |
-| Trading policy | https://github.com/AI4Finance-Foundation/FinRL-Trading | Apache 2.0 |
-| Backtest | https://github.com/nautechsystems/nautilus_trader | LGPL 3.0 |
-
-Public licenses and developer docs should be rechecked at exact integration
-commit, not treated as perpetual or automatically sublicensed rights. Imported
-software and pretrained weights can have independent licenses. The absence of
-a `LICENSE` file for A-nanTa itself is not a blanket permission to redistribute it.
-
-Historical trading data is independently licensed and may prohibit resale or
-redistribution even where model weights or source code are free.
-
-Private user-reported email grants have not been inspected. Record exact
-granted scope in a **private** compliance register, never Git or CI logs.
+These selections are research targets, not vendored or installed upstream packages. Review current license terms for both source libraries **and model weights** at the exact version to be used; private permissions require separate verification. Market feed licenses are independent. Software code, checkpoint weights, model cards, training data and distribution rights can have distinct terms.

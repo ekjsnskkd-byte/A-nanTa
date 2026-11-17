@@ -1,5 +1,5 @@
 schema_version: 2
-purpose: "Selected foundation checkpoints and representation models; selection does not mean installed, validated, or licensed."
+purpose: "Eight selected pretrained experts only; not installed or validated."
 selection_date: "2026-11-17"
 production_ready: false
 models:

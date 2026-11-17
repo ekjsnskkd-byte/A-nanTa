@@ -1,43 +1,33 @@
-schema_version: 1
-purpose: "One selected upstream per capability; no extra model size tiers or challenger roster"
+schema_version: 2
+purpose: "Seven selected Quant methods only; status means selected, not integrated."
 components:
-  - id: regime
+  - id: ms_ar
+    upstream: "https://www.statsmodels.org/stable/generated/statsmodels.tsa.regime_switching.markov_autoregression.MarkovAutoregression.html"
+    technology: "Markov-Switching Autoregression: regime-conditioned return/direction prediction"
+    status: selected_not_integrated
+  - id: kalman_trend
+    upstream: "https://www.statsmodels.org/stable/generated/statsmodels.tsa.statespace.structural.UnobservedComponents.html"
+    technology: "State-space Kalman filtered local linear trend"
+    status: selected_not_integrated
+  - id: egarch
+    upstream: "https://arch.readthedocs.io/en/stable/univariate/forecasting.html"
+    technology: "EGARCH conditional volatility forecasting"
+    status: selected_not_integrated
+  - id: statistical_jump_model
     upstream: "https://github.com/Yizhan-Oliver-Shu/jump-models"
-    technology: "Statistical discrete, continuous and sparse jump models with online prediction"
-    license: Apache-2.0
+    technology: "Online market-regime classification; train on historical folds"
     status: selected_not_integrated
-    note: "Use online predictive API; fit only on historical training windows. Current heuristic is a test control."
-  - id: microstructure
-    upstream: "https://github.com/LeonardoBerti00/TLOB"
-    technology: "TLOB with real L2 limit order book"
-    license: MIT
-    status: selected_not_integrated
-    note: "Crypto or exchange L2 only; use L1 quote metrics for OTC FX/CFDs. No synthetic LOB."
-  - id: meta_labeling
-    upstream: "https://github.com/landtml/quantowl"
-    technology: "Triple barrier, meta-labeling, purged validation, sizing diagnostics"
-    license: MIT
-    status: selected_not_integrated
-  - id: master_ensemble
-    upstream: "https://github.com/autogluon/autogluon"
-    technology: "Tabular stacked meta-learner and time-series weighted ensembles"
-    license: Apache-2.0
-    status: selected_optional_chronos_only
-    note: "External model forecasts need a common OOF prediction table."
-  - id: portfolio_policy
-    upstream: "https://github.com/AI4Finance-Foundation/FinRL-Trading"
-    technology: "Modular trading policy and portfolio weight contract"
-    license: Apache-2.0
-    status: selected_not_integrated
-    note: "Do not deploy RL policy until validated with broker-specific costs and risk guards."
-  - id: backtest_execution
-    upstream: "https://github.com/nautechsystems/nautilus_trader"
-    technology: "Event-driven quote/tick/book backtest, risk and execution"
-    license: LGPL-3.0
-    status: selected_not_integrated
-    note: "Live execution remains separate and disabled. Review LGPL obligations on distribution."
-  - id: online_change_point
+  - id: bocpd
     upstream: "https://github.com/hildensia/bayesian_changepoint_detection"
-    technology: "Bayesian Online Change Point Detection (BOCPD): run-length posterior and recent distribution-shift probability"
+    technology: "Bayesian online change point detection"
     status: selected_not_integrated
-    note: "Complement to jumpmodels: detect changes, not classify regime labels. Verify library maintenance, license and streaming API before implementation; no future observations in online scores."
+  - id: historical_pattern_matching
+    upstream: "https://github.com/stumpy-dev/stumpy"
+    supplementary: "https://tslearn.readthedocs.io/"
+    technology: "Past-only nearest-neighbor / DTW motif retrieval and forward outcome statistics"
+    status: selected_not_integrated
+  - id: first_passage
+    upstream: "https://docs.scipy.org/doc/scipy/"
+    technology: "First passage TP-before-SL probability and expected holding-time solver"
+    status: selected_not_integrated
+    note: "Mathematical method; SciPy is numerical tooling, not a ready-made market first-passage model."

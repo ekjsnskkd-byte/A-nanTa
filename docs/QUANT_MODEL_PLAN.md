@@ -6,7 +6,7 @@
 **Priority:** Prediction > Market Regime Intelligence > Entry/Exit Intelligence.
 **Out of scope for this plan:** building a dedicated AI capital manager, RL trading controller, or making EXAONE a mandatory centerpiece. Ordinary order decisions, position limits, margin handling and execution can be deterministic logic.
 
-## Selected Quant research stack (5 core components plus 3 approved additions)
+## Canonical Quant research stack (7 models/methods + 3 supporting techniques)
 
 | Responsibility | Selected model/method | Implementation reference | Main observable output |
 |---|---|---|---|
@@ -19,7 +19,7 @@
 | **Probability calibration (addition)** | Out-of-fold probability calibration (isotonic / logistic calibration, as appropriate) | https://scikit-learn.org/stable/modules/calibration.html | Calibrated P(up/down), Brier score, reliability diagnostics |
 | **Execution-aware entry/exit (addition)** | Bid/Ask quote cost and fill feasibility model integrated into first-passage / stopping | Broker/venue-specific tick replay and event-driven evaluation | Realistic expected net payoff, entry/exit feasibility, abstention |
 
-These five core components are **not five ready-made pretrained checkpoints**. MS-AR, Kalman, Jump Model and EGARCH need fitting to historical data; First-Passage/Optimal Stopping need a payoff model, boundary conditions and validated implementation. No claim of accuracy, profitability or universal superiority follows from their selection.
+The seven statistical/algorithmic Quant methods are **not ready-made pretrained checkpoints**. MS-AR, Kalman, Jump Model and EGARCH need fitting to historical data; First-Passage/Optimal Stopping need a payoff model, boundary conditions and validated implementation. No claim of accuracy, profitability or universal superiority follows from their selection.
 
 ## Approved complementary additions — 2026-11-17
 
@@ -59,7 +59,7 @@ Market-specific data (time-aligned OHLCV, Bid/Ask and available ticks)
   -> simple deterministic trade logic and independent risk checks
 ```
 
-EXAONE and other foundation models are **optional standalone experts** if separately proven useful. This plan does not replace the existing seven-model registry or modify active selection automatically.
+EXAONE and other foundation models are **optional standalone experts** if separately proven useful. The approved pretrained roster contains eight selected experts, none required as the system's center. The Quant registry lists exactly seven approved Quant models/methods.
 
 ## Research acceptance gates
 
@@ -88,4 +88,4 @@ EXAONE and other foundation models are **optional standalone experts** if separa
 
 ## Scope controls
 
-The three additions above were explicitly requested; they do not authorize extra foundation model candidates, challenger rosters, RL portfolio managers or unrelated framework dependencies. This file is a **saved plan**, not a claim that the system or its checkpoints were installed, trained or tested.
+The three additions above were explicitly requested; they do not authorize extra foundation model candidates, challenger rosters, RL portfolio managers or unrelated framework dependencies. This file is the **canonical saved plan**, not a claim that models or checkpoints were installed, trained or tested.
