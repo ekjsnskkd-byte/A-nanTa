@@ -2,11 +2,11 @@ schema_version: 1
 purpose: "One selected upstream per capability; no extra model size tiers or challenger roster"
 components:
   - id: regime
-    upstream: "https://github.com/Nabel7/regime-detection"
-    technology: "Gaussian HMM, HSMM and Sparse Jump Model"
-    license: MIT
+    upstream: "https://github.com/Yizhan-Oliver-Shu/jump-models"
+    technology: "Statistical discrete, continuous and sparse jump models with online prediction"
+    license: Apache-2.0
     status: selected_not_integrated
-    note: "Fit only inside the training window; the current heuristic is a test control."
+    note: "Use online predictive API; fit only on historical training windows. Current heuristic is a test control."
   - id: microstructure
     upstream: "https://github.com/LeonardoBerti00/TLOB"
     technology: "TLOB with real L2 limit order book"

@@ -19,7 +19,7 @@
 - [ ] Downloaded/pinned/hashed any of the seven pretrained checkpoints
 - [ ] Real inference adapters validated for all seven models
 - [ ] Real broker and crypto data ingestion and quality metrics
-- [ ] Regime HMM/HSMM/Jump Model trained and integrated
+- [ ] Selected jump-model regime detector fitted and integrated
 - [ ] TLOB installed and trained on verified exchange L2 data
 - [ ] quantowl meta-labeling and purged cross-validation integrated
 - [ ] AutoGluon trained seven-forecast OOF meta-learner/gating

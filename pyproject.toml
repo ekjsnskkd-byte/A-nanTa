@@ -13,6 +13,7 @@ dependencies = ["PyYAML>=6,<7"]
 [project.optional-dependencies]
 dev = ["pytest>=8,<10", "ruff>=0.7,<1"]
 forecast = ["autogluon.timeseries>=1.5,<2"]
+regime = ["jumpmodels"]
 
 [project.scripts]
 ananta = "ananta.cli:main"

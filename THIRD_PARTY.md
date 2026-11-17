@@ -19,7 +19,7 @@ letters are copied into A-nanTa.** These are external integration targets.
 
 | Component | Upstream | Reported source license |
 |---|---|---|
-| Regime | https://github.com/Nabel7/regime-detection | MIT |
+| Jump model regime detection | https://github.com/Yizhan-Oliver-Shu/jump-models | Apache 2.0 |
 | L2 Microstructure | https://github.com/LeonardoBerti00/TLOB | MIT |
 | Meta-labeling/CV | https://github.com/landtml/quantowl | MIT |
 | Ensemble | https://github.com/autogluon/autogluon | Apache 2.0 |

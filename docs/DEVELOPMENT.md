@@ -29,7 +29,7 @@ src/ananta/
   data.py                 # offline CSV import (not a data lake)
   microstructure.py       # tested L1 quote and L2 snapshot helpers
   decision.py             # research-only, no order sending
-  regime.py               # heuristic placeholder, not fitted HMM/HSMM
+  regime.py               # heuristic placeholder, not fitted jump model
   ensemble.py             # static baseline weights only
   evaluation.py           # basic splits and return metric
   experts/                # 2 baseline experts, optional Chronos-2 code

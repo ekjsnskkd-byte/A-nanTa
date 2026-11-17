@@ -14,7 +14,7 @@ Historically licensed quotes / bars / genuine exchange L2
   -> source provenance + availability timestamp + closed-bar controls
   -> per-market feature adapters
       |-- foundation experts: 7 fixed checkpoints (config/model_registry.yaml)
-      |-- regime: regime-detection [UPSTREAM SELECTED]
+      |-- regime: jumpmodels [UPSTREAM SELECTED]
       |-- microstructure: broker L1 metrics / TLOB on genuine exchange L2 only
   -> aligned, point-in-time OOF predictions
       |-- quantowl labeling + purged CV [UPSTREAM SELECTED]
@@ -32,7 +32,7 @@ Historically licensed quotes / bars / genuine exchange L2
 |---|---|---|
 | Source / schema | Broker tick / exchange archives / UTC normalization | CSV reader and Candle contract only |
 | Foundation experts | EXAONE, Reverso, TimeH2O, Timestral, Chronos-2, TimesFM 3, TiRex-2 | Synthetic baseline experts; optional untested Chronos wrapper |
-| Regime | Nabel7/regime-detection: Gaussian HMM/HSMM/sparse jump | Heuristic test control only |
+| Regime | Nabel7/jumpmodels: Discrete / continuous / sparse statistical jump | Heuristic test control only |
 | Microstructure | LeonardoBerti00/TLOB when genuine L2 exists | Tested L1 Quote and L2 Snapshot validation/imbalance code |
 | Labeling | quantowl | Not integrated |
 | Stacking | AutoGluon | Static weighted prototype, no learned stacker |
@@ -89,6 +89,6 @@ symbol, horizon and observed timestamp. A missing/late prediction fails closed.
 
 ## Scope note
 
-Upstream TLOB, FinRL-X, regime-detection, quantowl, AutoGluon stacking and
+Upstream TLOB, FinRL-X, jumpmodels, quantowl, AutoGluon stacking and
 NautilusTrader are **not yet vendored, installed or exercised** in current tests.
 Their upstream licenses and data requirements remain independent obligations.

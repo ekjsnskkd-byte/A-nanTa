@@ -26,7 +26,7 @@ Approximate total: **966.05 million parameters** (sum of separately hosted check
 
 | Capability | Upstream | What we get |
 |---|---|---|
-| Regime detection | [regime-detection](https://github.com/Nabel7/regime-detection) | HMM / HSMM / sparse jump models |
+| Regime detection | [jumpmodels](https://github.com/Yizhan-Oliver-Shu/jump-models) | Discrete / continuous / sparse statistical jump models |
 | Exchange L2 microstructure | [TLOB](https://github.com/LeonardoBerti00/TLOB) | Limit-order-book learning where genuine L2 is available |
 | Meta-labeling / purged CV | [quantowl](https://github.com/landtml/quantowl) | Triple barrier, meta-labeling, purging, diagnostics |
 | Master ensemble | [AutoGluon](https://github.com/autogluon/autogluon) | Stacking / automated model combination |
