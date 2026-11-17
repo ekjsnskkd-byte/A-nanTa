@@ -21,6 +21,24 @@
 
 These five core components are **not five ready-made pretrained checkpoints**. MS-AR, Kalman, Jump Model and EGARCH need fitting to historical data; First-Passage/Optimal Stopping need a payoff model, boundary conditions and validated implementation. No claim of accuracy, profitability or universal superiority follows from their selection.
 
+## Approved complementary additions — 2026-11-17
+
+These are **selected research additions**, not installed or validated models; the original five core Quant elements and three prior additions remain unchanged.
+
+| Added model | Category | Source | Distinct purpose | Integration state |
+|---|---|---|---|---|
+| MOMENT-1 Small | Freely available pretrained time-series representation model | https://huggingface.co/AutonLab/MOMENT-1-small | Generate learned embeddings to retrieve similar historical price patterns; probability of upward movement requires separate outcome analysis and calibration | selected_not_installed |
+| Bayesian Online Change Point Detection (BOCPD) | Open-source statistical model; requires parameterization and validation | https://github.com/hildensia/bayesian_changepoint_detection | Detect changes in data-generating process and track run-length probabilities; complements SJM regime labeling | selected_not_integrated |
+
+**Not selected for installation:** HawkesPyLib / Hawkes process remains an optional idea only if reliable timestamped event data is available; do not add without further instruction.
+
+### Validation and boundaries
+
+- MOMENT embedding similarity is not a calibrated P(up) forecast. Retrieve only patterns whose forward outcomes are known at cutoff; compare against raw nearest neighbors and DTW on the same untouched forward windows.
+- BOCPD is an online structural-change detector, not a trained trend-vs-range classifier. Monitor detection delay, false alarms and incremental contribution beyond SJM; estimate parameters from strictly historical data.
+- Do not require EXAONE or other foundation forecasters in this Quant stack.
+- Selection does not imply checkpoints have been downloaded, adapters implemented, or returns backtested.
+
 ## Proposed prediction-only data flow
 
 ```text
@@ -30,6 +48,8 @@ Market-specific data (time-aligned OHLCV, Bid/Ask and available ticks)
   -> Kalman: latent state / trend forecast
   -> Jump Model: filtered ONLINE regime state (no future smoothing)
   -> EGARCH: forecast conditional volatility
+  -> MOMENT-1 Small (optional selected embedding expert): learned representations for past-only pattern retrieval
+  -> BOCPD (optional selected detector): online probability of structural change
   -> Historical Pattern Matching: find prior similar episodes using past-only windows
   -> Statistical Outcome Analysis: infer empirical direction / return distributions
   -> OOF probability calibration of directional and barrier-event forecasts
