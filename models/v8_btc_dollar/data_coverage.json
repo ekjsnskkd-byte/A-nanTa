@@ -1,0 +1,12 @@
+{
+  "BTCUSD": {
+    "bars": 11804813,
+    "start": "2020-10-01 00:01:24.112000+00:00",
+    "end": "2026-10-31 23:59:11.173000+00:00",
+    "outage_gaps_gt_max": 8,
+    "median_bar_seconds": 4.342,
+    "largest_gap_seconds": 86425.26,
+    "source": "/content/drive/MyDrive/HERMES_Colab/ai_training/historical_market_cache/binance_cm_btcusd_aggtrades/BTCUSD_DOLLAR_500K.parquet",
+    "role": "btc_only_dollar_bars"
+  }
+}

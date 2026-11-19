@@ -1,0 +1,7 @@
+{
+  "temperature": 1.3820429178368876,
+  "n_calibration": 113270,
+  "multiclass_log_loss": 1.0547043896757031,
+  "contract_hash": "777055974f00fb3c9059bce6b94b0479672f1798bd77caf69a0da5847ce13387",
+  "frozen_checkpoint": "/content/drive/MyDrive/HERMES_Colab/ai_training/manticore_v70_trend_specialist_v2/v7314_btc_dollar_checkpoints/v8_btc_dollar_H_JOINT_best.pt"
+}
