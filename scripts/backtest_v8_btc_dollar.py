@@ -34,6 +34,34 @@ CFG = {
     'min_rows': 2000,
 }
 
+# Real broker specs queried from local MT5 (Exness-MT5Real25 / StandardCent / BTCUSDc)
+BROKER_CFG = {
+    'broker': 'Exness Technologies Ltd',
+    'server': 'Exness-MT5Real25',
+    'account_type': 'StandardCent',
+    'symbol': 'BTCUSDc',
+    'currency': 'USC',
+    'initial_balance_usc': 2083.62,
+    'leverage': 2000,
+    'margin_call_pct': 60.0,
+    'stop_out_pct': 0.0,
+    'commission_per_lot': 0.0,
+    'swap_long': 0.0,
+    'swap_short': 0.0,
+    'spread_usd': 6.40,
+    'ping_ms': 31.7,
+    'ping_min_ms': 30.0,
+    'ping_max_ms': 80.0,
+    'ping_seed': 42,
+    'slippage_bps': 0.0,
+    'contract_size': 0.01,
+    'volume_min': 0.01,
+    'volume_step': 0.01,
+    'volume_max': 200.0,
+    'stops_level': 0,
+    'freeze_level': 0,
+}
+
 TF_NAMES = list(CFG['mtf_timeframes'])
 FEATURES = [
     'ret1', 'ret3', 'ret12', 'vol12', 'vol48', 'vol_ratio', 'efficiency', 'range_norm',
@@ -379,9 +407,12 @@ class UniversalQuantModel(nn.Module):
 def run_nonoverlapping_backtest(df_bt, horizon_bars=96, fee_rt=0.0008, margin=0.05, label='V8_BTC_DOLLAR'):
     c = df_bt['close'].to_numpy(dtype=np.float64)
     ps = df_bt['p_short'].to_numpy(dtype=np.float64)
+    pw = df_bt['p_wait'].to_numpy(dtype=np.float64) if 'p_wait' in df_bt else np.zeros(len(c), dtype=np.float64)
     pl = df_bt['p_long'].to_numpy(dtype=np.float64)
     ul = df_bt['u_long'].to_numpy(dtype=np.float64)
     us = df_bt['u_short'].to_numpy(dtype=np.float64)
+    reg_hv = df_bt['reg_high_vol'].to_numpy(dtype=np.float64) if 'reg_high_vol' in df_bt else np.zeros(len(c), dtype=np.float64)
+    utc_hr = pd.to_datetime(df_bt['timestamp']).dt.hour.to_numpy(dtype=np.int32) if 'timestamp' in df_bt else np.zeros(len(c), dtype=np.int32)
     results = []
     for thresh in (0.35, 0.40, 0.45, 0.50, 0.55):
         eq = 1.0
@@ -436,9 +467,12 @@ def run_triple_barrier_backtest(df_bt, horizon_bars=96, fee_rt=0.0008, margin=0.
     lo = df_bt['low'].to_numpy(dtype=np.float64)
     lv = df_bt['local_vol'].to_numpy(dtype=np.float64)
     ps = df_bt['p_short'].to_numpy(dtype=np.float64)
+    pw = df_bt['p_wait'].to_numpy(dtype=np.float64) if 'p_wait' in df_bt else np.zeros(len(c), dtype=np.float64)
     pl = df_bt['p_long'].to_numpy(dtype=np.float64)
     ul = df_bt['u_long'].to_numpy(dtype=np.float64)
     us = df_bt['u_short'].to_numpy(dtype=np.float64)
+    reg_hv = df_bt['reg_high_vol'].to_numpy(dtype=np.float64) if 'reg_high_vol' in df_bt else np.zeros(len(c), dtype=np.float64)
+    utc_hr = pd.to_datetime(df_bt['timestamp']).dt.hour.to_numpy(dtype=np.int32) if 'timestamp' in df_bt else np.zeros(len(c), dtype=np.int32)
     mult = float(CFG['barrier_vol_multiplier'])
     min_mv = float(CFG['neutral_move_bps']) * 1e-4
     results = []
@@ -505,7 +539,85 @@ def run_triple_barrier_backtest(df_bt, horizon_bars=96, fee_rt=0.0008, margin=0.
     return results
 
 
-def run_realistic_backtest(df_bt, horizon_bars=96, spread_usd=0.8, ping_ms=60.0, slippage_bps=0.3, margin=0.05, label='REALISTIC'):
+def _quantize_lot(raw_lots, vmin, vstep, vmax):
+    if raw_lots < vmin:
+        return 0.0
+    steps = int(np.floor((raw_lots + 1e-12) / vstep))
+    return float(min(vmax, max(vmin, round(steps * vstep, 8))))
+
+
+def _summarize_realistic(bt_type, horizon_bars, thresh, trades, l_tr, s_tr, eq, max_dd,
+                         bal_usc, init_usc, lots_list, margin_calls, stop_outs,
+                         skipped_margin, min_edge=None, exit_counts=None):
+    arr = np.asarray(trades, dtype=np.float64)
+    la = np.asarray(l_tr, dtype=np.float64)
+    sa = np.asarray(s_tr, dtype=np.float64)
+    win = float((arr > 0).mean()) if len(arr) else 0.0
+    pf = float(arr[arr > 0].sum() / max(abs(arr[arr < 0].sum()), 1e-12)) if len(arr) else 0.0
+    sh = float(arr.mean() / max(arr.std(), 1e-12)) if len(arr) > 1 else 0.0
+    l_w = float((la > 0).mean()) if len(la) else 0.0
+    s_w = float((sa > 0).mean()) if len(sa) else 0.0
+    res = {
+        'type': bt_type, 'horizon_bars': horizon_bars, 'thresh': thresh,
+        'trades': len(arr), 'longs': len(la), 'long_win': l_w, 'shorts': len(sa), 'short_win': s_w,
+        'win_rate': win, 'profit_factor': pf, 'per_trade_sharpe': sh,
+        'total_return_pct': (eq - 1.0) * 100.0, 'max_drawdown_pct': max_dd * 100.0,
+        'initial_balance_usc': init_usc,
+        'final_balance_usc': round(bal_usc, 2),
+        'net_profit_usc': round(bal_usc - init_usc, 2),
+        'usc_return_pct': (bal_usc / init_usc - 1.0) * 100.0 if init_usc > 0 else 0.0,
+        'avg_lots': float(np.mean(lots_list)) if lots_list else 0.0,
+        'margin_calls': margin_calls,
+        'stop_outs': stop_outs,
+        'skipped_insufficient_margin': skipped_margin,
+    }
+    if min_edge is not None:
+        res['min_edge_bps'] = min_edge * 1e4
+    if exit_counts is not None:
+        res['exit_counts'] = exit_counts
+    return res
+
+
+def run_realistic_backtest(
+    df_bt,
+    horizon_bars=96,
+    spread_usd=BROKER_CFG['spread_usd'],
+    ping_ms=BROKER_CFG['ping_ms'],
+    ping_min_ms=BROKER_CFG['ping_min_ms'],
+    ping_max_ms=BROKER_CFG['ping_max_ms'],
+    ping_seed=BROKER_CFG['ping_seed'],
+    slippage_bps=BROKER_CFG['slippage_bps'],
+    commission_per_lot=BROKER_CFG['commission_per_lot'],
+    leverage=BROKER_CFG['leverage'],
+    initial_balance_usc=BROKER_CFG['initial_balance_usc'],
+    margin_call_pct=BROKER_CFG['margin_call_pct'],
+    stop_out_pct=BROKER_CFG['stop_out_pct'],
+    contract_size=BROKER_CFG['contract_size'],
+    volume_min=BROKER_CFG['volume_min'],
+    volume_step=BROKER_CFG['volume_step'],
+    volume_max=BROKER_CFG['volume_max'],
+    use_policy=True,
+    be_trigger_frac=0.25,
+    be_lock_frac=0.05,
+    trail_start_frac=0.60,
+    trail_dist_frac=0.40,
+    sl_recovery_thresh=0.40,
+    use_timeout_policy=True,
+    extend_bars=48,
+    max_horizon_bars=144,
+    stale_start_bar=48,
+    decay_start_bar=64,
+    decay_trail_dist_frac=0.20,
+    risk_pct=1.0,
+    min_edge_bps=25.0,
+    base_thresh=0.35,
+    sweep=False,
+    use_soft_cut=True,
+    max_high_vol=0.40,
+    trade_log_out=None,
+    margin=0.05,
+    label='EXNESS_CENT',
+):
     o = df_bt['open'].to_numpy(dtype=np.float64)
     c = df_bt['close'].to_numpy(dtype=np.float64)
     hi = df_bt['high'].to_numpy(dtype=np.float64)
@@ -513,20 +625,33 @@ def run_realistic_backtest(df_bt, horizon_bars=96, spread_usd=0.8, ping_ms=60.0,
     lv = df_bt['local_vol'].to_numpy(dtype=np.float64)
     dur = df_bt['duration_sec'].to_numpy(dtype=np.float64)
     ps = df_bt['p_short'].to_numpy(dtype=np.float64)
+    pw = df_bt['p_wait'].to_numpy(dtype=np.float64) if 'p_wait' in df_bt else np.zeros(len(c), dtype=np.float64)
     pl = df_bt['p_long'].to_numpy(dtype=np.float64)
     ul = df_bt['u_long'].to_numpy(dtype=np.float64)
     us = df_bt['u_short'].to_numpy(dtype=np.float64)
+    reg_hv = df_bt['reg_high_vol'].to_numpy(dtype=np.float64) if 'reg_high_vol' in df_bt else np.zeros(len(c), dtype=np.float64)
+    utc_hr = pd.to_datetime(df_bt['timestamp']).dt.hour.to_numpy(dtype=np.int32) if 'timestamp' in df_bt else np.zeros(len(c), dtype=np.int32)
 
-    ping_s = ping_ms / 1000.0
+    rng = np.random.default_rng(ping_seed)
+    ping_samples_ms = []
     half_spread = spread_usd * 0.5
     slip_frac = slippage_bps * 1e-4
     mult = float(CFG['barrier_vol_multiplier'])
     min_mv = float(CFG['neutral_move_bps']) * 1e-4
     results = []
 
+    def sample_ping_s():
+        if ping_max_ms <= ping_min_ms:
+            p_ms = float(ping_ms)
+        else:
+            # Right-skewed Beta(1.2, 6.0) in [ping_min_ms, ping_max_ms]: most samples fall in 30-40ms
+            p_ms = float(ping_min_ms + (ping_max_ms - ping_min_ms) * rng.beta(1.2, 6.0))
+        ping_samples_ms.append(p_ms)
+        return p_ms / 1000.0
+
     def exec_entry(idx, is_long):
-        # Simulate 60ms network ping from bar idx close into subsequent bar(s)
-        rem = ping_s
+        # Simulate jittered network ping from bar idx close into subsequent bar(s)
+        rem = sample_ping_s()
         k = idx + 1
         n_rep = len(c)
         while k < n_rep - 1 and dur[k] < rem:
@@ -540,97 +665,269 @@ def run_realistic_backtest(df_bt, horizon_bars=96, spread_usd=0.8, ping_ms=60.0,
             fill = mid_entry - half_spread - mid_entry * slip_frac
         return k, fill
 
-    # 1. Fixed-horizon realistic execution
-    for hb in (24, 96):
-        for thresh in (0.35, 0.40, 0.45):
-            eq = 1.0; peak = 1.0; max_dd = 0.0; trades = []; l_tr = []; s_tr = []
-            i = 0; n_rep = len(c); skipped_fast = 0
-            while i + hb + 5 < n_rep:
-                go_l = pl[i] >= thresh and (pl[i] - ps[i]) >= margin and ul[i] >= us[i]
-                go_s = ps[i] >= thresh and (ps[i] - pl[i]) >= margin and us[i] >= ul[i]
-                if not (go_l or go_s):
-                    i += 1; continue
-                ent_k, entry_p = exec_entry(i, go_l)
-                if ent_k > i + 1:
-                    skipped_fast += 1
-                exit_k = min(ent_k + hb, n_rep - 1)
-                # Exit also incurs 60ms ping into exit_k + 1
-                _, exit_raw = exec_entry(exit_k - 1, not go_l)
-                ret = ((exit_raw / entry_p) - 1.0) if go_l else (1.0 - (exit_raw / entry_p))
-                trades.append(ret); (l_tr if go_l else s_tr).append(ret)
-                eq *= (1.0 + ret); peak = max(peak, eq); max_dd = min(max_dd, (eq - peak) / peak)
-                i = exit_k
-            arr = np.asarray(trades, dtype=np.float64)
-            la = np.asarray(l_tr, dtype=np.float64); sa = np.asarray(s_tr, dtype=np.float64)
-            win = float((arr > 0).mean()) if len(arr) else 0.0
-            pf = float(arr[arr > 0].sum() / max(abs(arr[arr < 0].sum()), 1e-12)) if len(arr) else 0.0
-            sh = float(arr.mean() / max(arr.std(), 1e-12)) if len(arr) > 1 else 0.0
-            l_w = float((la > 0).mean()) if len(la) else 0.0; s_w = float((sa > 0).mean()) if len(sa) else 0.0
-            res = {
-                'type': 'realistic_fixed', 'horizon_bars': hb, 'thresh': thresh,
-                'trades': len(arr), 'longs': len(la), 'long_win': l_w, 'shorts': len(sa), 'short_win': s_w,
-                'win_rate': win, 'profit_factor': pf, 'per_trade_sharpe': sh,
-                'total_return_pct': (eq - 1) * 100, 'max_drawdown_pct': max_dd * 100,
-                'ping_multi_bar_fills': skipped_fast,
-            }
-            results.append(res)
-            print(f'[REAL-FIX|{label}|h={hb}] T={thresh:.2f} | N={len(arr)} (L={len(la)}/{l_w:.2f}, S={len(sa)}/{s_w:.2f}) | win={win:.3f} | PF={pf:.2f} | sr={sh:.2f} | ret={(eq-1)*100:.2f}% | dd={max_dd*100:.2f}%')
+    def size_and_margin(bal_usc, entry_p, sl_dist_usd):
+        # Risk-based sizing using broker leverage: target risk_pct% of bal_usc at SL
+        notional_per_lot_usc = entry_p * contract_size * 100.0
+        loss_per_lot_usc = max(sl_dist_usd * contract_size * 100.0, 1e-9)
+        risk_budget_usc = bal_usc * (float(risk_pct) / 100.0)
+        raw_lots = risk_budget_usc / loss_per_lot_usc
+        # Cap notional by leverage (keep at least 20% free margin buffer)
+        max_lev_lots = (bal_usc * max(float(leverage), 1.0) * 0.80) / max(notional_per_lot_usc, 1e-9)
+        raw_lots = min(raw_lots, max_lev_lots)
+        lots = _quantize_lot(raw_lots, volume_min, volume_step, volume_max)
+        if lots <= 0.0:
+            return 0.0, 0.0
+        margin_req = (lots * notional_per_lot_usc) / max(float(leverage), 1.0)
+        if bal_usc <= 0.0 or margin_req > bal_usc:
+            return 0.0, margin_req
+        return lots, margin_req
 
-    # 2. Triple-Barrier realistic execution (TP = limit fill no slip, SL/Timeout = market fill w/ spread+slip+ping)
-    for min_edge in (0.0, 0.0025):
-        for thresh in (0.35, 0.40, 0.45):
+    def check_intrabar_margin(bal_usc, margin_req, lots, entry_p, is_long, bar_hi, bar_lo):
+        if margin_req <= 0.0:
+            return False, False, 0.0
+        # Worst-case executable exit price on this bar (Long closes at Bid, Short closes at Ask)
+        worst_exit = (bar_lo - half_spread) if is_long else (bar_hi + half_spread)
+        pnl_usc = ((worst_exit - entry_p) if is_long else (entry_p - worst_exit)) * lots * contract_size * 100.0
+        eq_usc = bal_usc + pnl_usc
+        ml_pct = (eq_usc / margin_req) * 100.0
+        mc = ml_pct <= margin_call_pct
+        so = ml_pct <= stop_out_pct
+        if so:
+            so_target_eq = margin_req * (stop_out_pct / 100.0)
+            so_pnl = so_target_eq - bal_usc
+            denom = lots * contract_size * 100.0
+            so_price = (entry_p + so_pnl / denom) if is_long else (entry_p - so_pnl / denom)
+            return mc, True, max(so_price, 0.01)
+        return mc, False, 0.0
+
+    # Triple-Barrier ONLY with In-Trade Policy (locked default: tp>=25bp, T=0.35)
+    min_edges = (0.0, 0.0025) if sweep else (float(min_edge_bps) * 1e-4,)
+    threshes = (0.35, 0.40, 0.45) if sweep else (float(base_thresh),)
+    for min_edge in min_edges:
+        for thresh in threshes:
             eq = 1.0; peak = 1.0; max_dd = 0.0; trades = []; l_tr = []; s_tr = []
+            bal_usc = float(initial_balance_usc)
+            lots_list = []; margin_calls = 0; stop_outs = 0; skipped_margin = 0
+            exit_counts = {
+                'tp': 0, 'sl': 0, 'breakeven': 0, 'trailing_stop': 0,
+                'stale_cut': 0, 'soft_cut_early': 0, 'soft_cut_drift': 0, 'soft_cut_hv': 0,
+                'timeout': 0, 'stop_out': 0,
+            }
+            partial_cuts = 0
+            cur_thresh = float(thresh)
+            sl_bumps = 0
+            extensions = 0
             i = 0; n_rep = len(c)
-            while i + horizon_bars + 5 < n_rep:
+            while i + horizon_bars + 5 < n_rep and bal_usc > 0.0:
+                if reg_hv[i] >= max_high_vol:
+                    i += 1; continue
                 up_r = max(mult * lv[i] * np.sqrt(horizon_bars), min_mv)
-                go_l = up_r >= min_edge and pl[i] >= thresh and (pl[i] - ps[i]) >= margin and ul[i] >= us[i]
-                go_s = up_r >= min_edge and ps[i] >= thresh and (ps[i] - pl[i]) >= margin and us[i] >= ul[i]
+                go_l = up_r >= min_edge and pl[i] >= cur_thresh and (pl[i] - ps[i]) >= margin and ul[i] >= us[i]
+                go_s = up_r >= min_edge and ps[i] >= cur_thresh and (ps[i] - pl[i]) >= margin and us[i] >= ul[i]
                 if not (go_l or go_s):
                     i += 1; continue
                 ent_k, entry_p = exec_entry(i, go_l)
+                sl_init = entry_p * np.exp(-up_r) if go_l else entry_p * np.exp(up_r)
+                sl_dist_usd = abs(entry_p - sl_init)
+                lots, m_req = size_and_margin(bal_usc, entry_p, sl_dist_usd)
+                if lots <= 0.0:
+                    skipped_margin += 1; i += 1; continue
+                # Reset threshold back to base thresh once a new trade is opened
+                was_bumped = cur_thresh > float(thresh) + 1e-12
+                cur_thresh = float(thresh)
                 tp = entry_p * np.exp(up_r) if go_l else entry_p * np.exp(-up_r)
-                sl = entry_p * np.exp(-up_r) if go_l else entry_p * np.exp(up_r)
+                active_sl = sl_init
+                sl_stage = 'sl'
+                best_fav_p = entry_p
+                be_trigger_r = up_r * be_trigger_frac
+                trail_start_r = up_r * trail_start_frac
+
+                cur_horizon = horizon_bars
                 k_exit = horizon_bars
                 exit_p = c[min(ent_k + horizon_bars, n_rep - 1)]
                 hit_type = 'timeout'
-                for k in range(1, horizon_bars + 1):
+                partial_done = False
+                realized_partial_usc = 0.0
+                orig_lots = lots
+                k = 1
+                while k <= cur_horizon:
                     idx_k = ent_k + k
                     if idx_k >= n_rep:
+                        k_exit = k - 1
                         break
+                    mc, so, so_p = check_intrabar_margin(bal_usc, m_req, lots, entry_p, go_l, hi[idx_k], lo[idx_k])
+                    if mc:
+                        margin_calls += 1
+                    if so:
+                        stop_outs += 1; k_exit = k; exit_p = so_p; hit_type = 'stop_out'; break
+
+                    # Strictly causal: check active_sl & tp from prior bar state before updating BE/TS/Timeout policies
                     if go_l:
-                        if lo[idx_k] <= sl:
-                            k_exit = k; exit_p = sl - half_spread - sl * slip_frac; hit_type = 'sl'; break
-                        if hi[idx_k] >= tp:
+                        bid_lo = lo[idx_k] - half_spread
+                        bid_hi = hi[idx_k] - half_spread
+                        if bid_lo <= active_sl:
+                            k_exit = k; exit_p = active_sl - active_sl * slip_frac; hit_type = sl_stage; break
+                        if bid_hi >= tp:
                             k_exit = k; exit_p = tp; hit_type = 'tp'; break
+                        if use_policy:
+                            if bid_hi > best_fav_p:
+                                best_fav_p = bid_hi
+                            fav_r = np.log(max(best_fav_p, 1e-9) / entry_p)
+                            if fav_r >= be_trigger_r:
+                                be_sl = entry_p * np.exp(up_r * be_lock_frac)
+                                if be_sl > active_sl:
+                                    active_sl = be_sl
+                                    if sl_stage == 'sl':
+                                        sl_stage = 'breakeven'
+                            # Idea 3: Time-decay trailing tightening when k >= decay_start_bar
+                            eff_trail_frac = decay_trail_dist_frac if (use_timeout_policy and k >= decay_start_bar) else trail_dist_frac
+                            if fav_r >= trail_start_r:
+                                tr_sl = best_fav_p * np.exp(-up_r * eff_trail_frac)
+                                if tr_sl > active_sl:
+                                    active_sl = tr_sl
+                                    sl_stage = 'trailing_stop'
                     else:
-                        if hi[idx_k] >= sl:
-                            k_exit = k; exit_p = sl + half_spread + sl * slip_frac; hit_type = 'sl'; break
-                        if lo[idx_k] <= tp:
+                        ask_hi = hi[idx_k] + half_spread
+                        ask_lo = lo[idx_k] + half_spread
+                        if ask_hi >= active_sl:
+                            k_exit = k; exit_p = active_sl + active_sl * slip_frac; hit_type = sl_stage; break
+                        if ask_lo <= tp:
                             k_exit = k; exit_p = tp; hit_type = 'tp'; break
+                        if use_policy:
+                            if ask_lo < best_fav_p:
+                                best_fav_p = ask_lo
+                            fav_r = np.log(entry_p / max(best_fav_p, 1e-9))
+                            if fav_r >= be_trigger_r:
+                                be_sl = entry_p * np.exp(-up_r * be_lock_frac)
+                                if be_sl < active_sl:
+                                    active_sl = be_sl
+                                    if sl_stage == 'sl':
+                                        sl_stage = 'breakeven'
+                            eff_trail_frac = decay_trail_dist_frac if (use_timeout_policy and k >= decay_start_bar) else trail_dist_frac
+                            if fav_r >= trail_start_r:
+                                tr_sl = best_fav_p * np.exp(up_r * eff_trail_frac)
+                                if tr_sl < active_sl:
+                                    active_sl = tr_sl
+                                    sl_stage = 'trailing_stop'
+
+                    if use_timeout_policy:
+                        cur_exec = (c[idx_k] - half_spread) if go_l else (c[idx_k] + half_spread)
+                        cur_r = np.log(max(cur_exec, 1e-9) / entry_p) if go_l else np.log(entry_p / max(cur_exec, 1e-9))
+                        mfe_r = np.log(max(best_fav_p, 1e-9) / entry_p) if go_l else np.log(entry_p / max(best_fav_p, 1e-9))
+                        opp_flip = (ps[idx_k] > pl[idx_k] and us[idx_k] > ul[idx_k]) if go_l else (pl[idx_k] > ps[idx_k] and ul[idx_k] > us[idx_k])
+                        still_same = (pl[idx_k] > ps[idx_k] and ul[idx_k] >= us[idx_k]) if go_l else (ps[idx_k] > pl[idx_k] and us[idx_k] >= ul[idx_k])
+                        p_dir_now = pl[idx_k] if go_l else ps[idx_k]
+
+                        if use_soft_cut:
+                            p_opp_now = ps[idx_k] if go_l else pl[idx_k]
+                            # Soft Cut 1: Fast close for INSTANT_WRONG_DIR (k>=6, MFE<3bp, cur<=-35% SL, model lost conviction)
+                            if k >= 6 and mfe_r < 0.0003 and cur_r <= -0.35 * up_r and (opp_flip or p_dir_now < p_opp_now or pw[idx_k] >= 0.45):
+                                k_exit = k
+                                _, exit_p = exec_entry(min(idx_k, n_rep - 2), not go_l)
+                                hit_type = 'soft_cut_early'
+                                break
+                            # Soft Cut 3: HighVol regime spike while losing and not confirmed
+                            if reg_hv[idx_k] >= 0.60 and cur_r < 0.0 and not still_same:
+                                k_exit = k
+                                _, exit_p = exec_entry(min(idx_k, n_rep - 2), not go_l)
+                                hit_type = 'soft_cut_hv'
+                                break
+                            # Soft Cut Drift: Catch slow bleeders before full SL (k>=16, down >=60% of SL, not strong conviction)
+                            if k >= 16 and cur_r <= -0.60 * up_r and p_dir_now < 0.40:
+                                k_exit = k
+                                _, exit_p = exec_entry(min(idx_k, n_rep - 2), not go_l)
+                                hit_type = 'soft_cut_drift'
+                                break
+                            # Soft Cut 2: Partial 50% cut when down >= 50% of SL and confidence fades
+                            if (not partial_done) and cur_r <= -0.50 * up_r and (p_dir_now < 0.35 or pw[idx_k] >= 0.45):
+                                cut_lots = _quantize_lot(lots * 0.50, volume_min, volume_step, volume_max)
+                                if cut_lots >= volume_min and (lots - cut_lots) >= volume_min:
+                                    _, part_exit_p = exec_entry(min(idx_k, n_rep - 2), not go_l)
+                                    part_pnl = ((part_exit_p - entry_p) if go_l else (entry_p - part_exit_p)) * cut_lots * contract_size * 100.0
+                                    part_comm = commission_per_lot * cut_lots * 100.0
+                                    realized_partial_usc += (part_pnl - part_comm)
+                                    prev_lots = lots
+                                    lots = round(lots - cut_lots, 8)
+                                    m_req *= (lots / max(prev_lots, 1e-9))
+                                    partial_done = True
+                                    partial_cuts += 1
+
+                        # Soft Cut 4: Session-aware stale cut (24 bars in 12-16 UTC, else 48 bars)
+                        eff_stale_bar = 24 if (use_soft_cut and 12 <= utc_hr[idx_k] < 16) else stale_start_bar
+                        if k >= eff_stale_bar and sl_stage == 'sl':
+                            if opp_flip or pw[idx_k] >= 0.55:
+                                k_exit = k
+                                _, exit_p = exec_entry(min(idx_k, n_rep - 2), not go_l)
+                                hit_type = 'stale_cut'
+                                break
+                        # Idea 1 (Timeout): Model-guided timeout extension if in profit and model still favors same direction
+                        if k == cur_horizon and cur_horizon + extend_bars <= max_horizon_bars:
+                            in_profit = (cur_exec > entry_p) if go_l else (cur_exec < entry_p)
+                            if in_profit and still_same:
+                                be_sl = entry_p * np.exp(up_r * be_lock_frac) if go_l else entry_p * np.exp(-up_r * be_lock_frac)
+                                if (go_l and be_sl > active_sl) or ((not go_l) and be_sl < active_sl):
+                                    active_sl = be_sl
+                                    if sl_stage == 'sl':
+                                        sl_stage = 'breakeven'
+                                cur_horizon += extend_bars
+                                k_exit = cur_horizon
+                                extensions += 1
+                    k += 1
                 if hit_type == 'timeout':
                     _, exit_p = exec_entry(min(ent_k + k_exit - 1, n_rep - 2), not go_l)
-                ret = ((exit_p / entry_p) - 1.0) if go_l else (1.0 - (exit_p / entry_p))
-                conf_sz = float(np.clip(((pl[i] - ps[i]) if go_l else (ps[i] - pl[i])) / 0.25, 0.35, 1.0))
-                trades.append(ret * conf_sz)
-                (l_tr if go_l else s_tr).append(ret * conf_sz)
-                eq *= (1.0 + ret * conf_sz)
+                exit_counts[hit_type] += 1
+                if hit_type in ('sl', 'stop_out') and sl_recovery_thresh > thresh:
+                    cur_thresh = max(float(thresh), float(sl_recovery_thresh))
+                    sl_bumps += 1
+                pnl_usc = ((exit_p - entry_p) if go_l else (entry_p - exit_p)) * lots * contract_size * 100.0
+                comm_usc = commission_per_lot * lots * 100.0
+                net_usc = realized_partial_usc + pnl_usc - comm_usc
+                acct_ret = net_usc / max(bal_usc, 1e-9)
+                bal_usc = max(0.0, bal_usc + net_usc)
+                lots_list.append(orig_lots)
+                trades.append(acct_ret)
+                (l_tr if go_l else s_tr).append(acct_ret)
+                eq *= (1.0 + acct_ret)
                 peak = max(peak, eq)
                 max_dd = min(max_dd, (eq - peak) / peak)
+                if trade_log_out is not None:
+                    trade_log_out.append({
+                        'sig_idx': int(i),
+                        'ent_idx': int(ent_k),
+                        'exit_idx': int(min(ent_k + k_exit, n_rep - 1)),
+                        'hold_bars': int(k_exit),
+                        'side': 'LONG' if go_l else 'SHORT',
+                        'exit_reason': hit_type,
+                        'entry_p': float(entry_p),
+                        'exit_p': float(exit_p),
+                        'lots': float(lots),
+                        'up_r': float(up_r),
+                        'best_fav_p': float(best_fav_p),
+                        'net_usc': float(net_usc),
+                        'acct_ret': float(acct_ret),
+                        'bal_after': float(bal_usc),
+                        'dd_pct': float((eq - peak) / peak * 100.0),
+                        'after_sl_bump': bool(was_bumped),
+                        'extended_bars': int(cur_horizon - horizon_bars),
+                    })
                 i = ent_k + k_exit
-            arr = np.asarray(trades, dtype=np.float64)
-            la = np.asarray(l_tr, dtype=np.float64); sa = np.asarray(s_tr, dtype=np.float64)
-            win = float((arr > 0).mean()) if len(arr) else 0.0
-            pf = float(arr[arr > 0].sum() / max(abs(arr[arr < 0].sum()), 1e-12)) if len(arr) else 0.0
-            sh = float(arr.mean() / max(arr.std(), 1e-12)) if len(arr) > 1 else 0.0
-            l_w = float((la > 0).mean()) if len(la) else 0.0; s_w = float((sa > 0).mean()) if len(sa) else 0.0
-            res = {
-                'type': 'realistic_tb', 'horizon_bars': horizon_bars, 'min_edge_bps': min_edge * 1e4, 'thresh': thresh,
-                'trades': len(arr), 'longs': len(la), 'long_win': l_w, 'shorts': len(sa), 'short_win': s_w,
-                'win_rate': win, 'profit_factor': pf, 'per_trade_sharpe': sh,
-                'total_return_pct': (eq - 1) * 100, 'max_drawdown_pct': max_dd * 100
-            }
+            res = _summarize_realistic(
+                'realistic_tb_policy' if use_policy else 'realistic_tb',
+                horizon_bars, thresh, trades, l_tr, s_tr, eq, max_dd,
+                bal_usc, float(initial_balance_usc), lots_list, margin_calls, stop_outs,
+                skipped_margin, min_edge=min_edge, exit_counts=exit_counts,
+            )
             results.append(res)
-            print(f'[REAL-TB|{label}|h={horizon_bars}|tp>={min_edge*1e4:.0f}bp] T={thresh:.2f} | N={len(arr)} (L={len(la)}/{l_w:.2f}, S={len(sa)}/{s_w:.2f}) | win={win:.3f} | PF={pf:.2f} | sr={sh:.2f} | ret={(eq-1)*100:.2f}% | dd={max_dd*100:.2f}%')
+            tag = 'TB+POL' if use_policy else 'TB'
+            print(f"[{tag}|{label}|h={horizon_bars}|tp>={min_edge*1e4:.0f}bp] T={thresh:.2f} | N={res['trades']} (L={res['longs']}/{res['long_win']:.2f}, S={res['shorts']}/{res['short_win']:.2f}) | win={res['win_rate']:.3f} | PF={res['profit_factor']:.2f} | sr={res['per_trade_sharpe']:.2f} | ret={res['total_return_pct']:.2f}% | dd={res['max_drawdown_pct']:.2f}% | bal={res['final_balance_usc']:.2f}c | exits={exit_counts}")
+    if ping_samples_ms:
+        pa = np.asarray(ping_samples_ms, dtype=np.float64)
+        in_30_40 = float(((pa >= 30.0) & (pa <= 40.0)).mean() * 100.0)
+        print(
+            f"[PING STATS] n={len(pa)} | min={pa.min():.2f}ms | p50={np.percentile(pa, 50):.2f}ms | "
+            f"mean={pa.mean():.2f}ms | p95={np.percentile(pa, 95):.2f}ms | max={pa.max():.2f}ms | "
+            f"in_30_40ms={in_30_40:.1f}%"
+        )
     return results
 
 
@@ -641,10 +938,33 @@ def main():
                         help='0=all, 1=first half (save cache), 2=second half + backtest')
     parser.add_argument('--from-preds', type=str, default=None,
                         help='Skip inference and run backtests from saved predictions parquet')
+    parser.add_argument('--spread-usd', type=float, default=BROKER_CFG['spread_usd'])
+    parser.add_argument('--ping-ms', type=float, default=BROKER_CFG['ping_ms'])
+    parser.add_argument('--ping-min-ms', type=float, default=BROKER_CFG['ping_min_ms'])
+    parser.add_argument('--ping-max-ms', type=float, default=BROKER_CFG['ping_max_ms'])
+    parser.add_argument('--ping-seed', type=int, default=BROKER_CFG['ping_seed'])
+    parser.add_argument('--slippage-bps', type=float, default=BROKER_CFG['slippage_bps'])
+    parser.add_argument('--leverage', type=int, default=BROKER_CFG['leverage'])
+    parser.add_argument('--initial-usc', type=float, default=BROKER_CFG['initial_balance_usc'])
+    parser.add_argument('--no-policy', action='store_true', help='Disable BE/Trailing Stop policy')
+    parser.add_argument('--be-trigger', type=float, default=0.25, help='Breakeven trigger fraction of TP distance')
+    parser.add_argument('--be-lock', type=float, default=0.05, help='Breakeven profit lock fraction of TP distance')
+    parser.add_argument('--trail-start', type=float, default=0.60, help='Trailing stop start fraction of TP distance')
+    parser.add_argument('--trail-dist', type=float, default=0.40, help='Trailing stop distance fraction of TP distance')
+    parser.add_argument('--sl-thresh', type=float, default=0.40, help='Threshold after SL hit until next trade opens')
+    parser.add_argument('--risk-pct', type=float, default=1.0, help='Target risk percent of balance per trade at SL')
+    parser.add_argument('--min-edge-bps', type=float, default=25.0, help='Minimum TP distance in bps (locked default 25bp)')
+    parser.add_argument('--thresh', type=float, default=0.35, help='Base entry probability threshold (locked default 0.35)')
+    parser.add_argument('--sweep', action='store_true', help='Run full grid sweep instead of locked default')
+    parser.add_argument('--parquet', type=str, default='/tmp/BTCUSD_DOLLAR_500K.parquet', help='Path to full dollar-bar parquet')
+    parser.add_argument('--months', type=int, default=int(CFG['sealed_months']), help='Months to evaluate from data end (e.g. 12 for 1 year)')
+    parser.add_argument('--start-date', type=str, default=None, help='Explicit UTC start date (e.g. 2026-01-01) overriding --months')
+    parser.add_argument('--out-preds', type=str, default='models/v8_btc_dollar/sealed_oos_preds.parquet')
+    parser.add_argument('--out-json', type=str, default='models/v8_btc_dollar/sealed_oos_realistic_backtest.json')
     args = parser.parse_args()
 
     t0 = time.time()
-    preds_cache_path = Path('models/v8_btc_dollar/sealed_oos_preds.parquet')
+    preds_cache_path = Path(args.out_preds)
 
     if args.from_preds:
         print('Loading cached predictions:', args.from_preds)
@@ -653,7 +973,7 @@ def main():
     else:
         torch.set_num_threads(4)
         ckpt_path = Path('models/v8_btc_dollar/ananta_v8_btc_dollar.pt')
-        parquet_path = Path('/tmp/BTCUSD_DOLLAR_500K.parquet')
+        parquet_path = Path(args.parquet)
 
         print('Loading checkpoint:', ckpt_path)
         ckpt = torch.load(ckpt_path, map_location='cpu', weights_only=False)
@@ -676,7 +996,10 @@ def main():
         print('Loading parquet:', parquet_path)
         d = load_asset_file(parquet_path)
         end = d.index.max()
-        sealed_start = end - pd.DateOffset(months=int(CFG['sealed_months']))
+        if args.start_date:
+            sealed_start = pd.Timestamp(args.start_date, tz='UTC')
+        else:
+            sealed_start = end - pd.DateOffset(months=int(args.months))
         warmup_start = sealed_start - pd.DateOffset(days=40)
         print(f'Data end: {end} | Sealed OOS start: {sealed_start} | Warmup start: {warmup_start}')
 
@@ -820,19 +1143,73 @@ def main():
     print(f'Prob quantiles (p_short / p_wait / p_long) mean: {probs_all.mean(0).round(4).tolist()}')
     print(f'Prob max: short={probs_all[:,0].max():.4f}, wait={probs_all[:,1].max():.4f}, long={probs_all[:,2].max():.4f}')
 
-    print('\n--- Realistic Execution Backtest (Fee=0, Spread=$0.80, Ping=60ms, Slippage=0.3bps/side) ---')
-    real_results = run_realistic_backtest(pred_df, horizon_bars=96, spread_usd=0.8, ping_ms=60.0, slippage_bps=0.3)
+    use_policy = not args.no_policy
+    print(
+        f"\n--- Triple-Barrier Only Backtest ({BROKER_CFG['server']} {BROKER_CFG['account_type']} "
+        f"{BROKER_CFG['symbol']} | Fee={BROKER_CFG['commission_per_lot']}, "
+        f"Spread=${args.spread_usd:.2f}, Ping={args.ping_min_ms:.0f}-{args.ping_max_ms:.0f}ms, "
+        f"Policy={'ON' if use_policy else 'OFF'}[BE@{args.be_trigger:.2f}(+{args.be_lock:.2f}), TS@{args.trail_start:.2f}(-{args.trail_dist:.2f})], "
+        f"LV=1:{args.leverage}, MC={BROKER_CFG['margin_call_pct']:.0f}%, SO={BROKER_CFG['stop_out_pct']:.0f}%) ---"
+    )
+    real_results = run_realistic_backtest(
+        pred_df,
+        horizon_bars=96,
+        spread_usd=args.spread_usd,
+        ping_ms=args.ping_ms,
+        ping_min_ms=args.ping_min_ms,
+        ping_max_ms=args.ping_max_ms,
+        ping_seed=args.ping_seed,
+        slippage_bps=args.slippage_bps,
+        leverage=args.leverage,
+        initial_balance_usc=args.initial_usc,
+        use_policy=use_policy,
+        be_trigger_frac=args.be_trigger,
+        be_lock_frac=args.be_lock,
+        trail_start_frac=args.trail_start,
+        trail_dist_frac=args.trail_dist,
+        sl_recovery_thresh=args.sl_thresh,
+        risk_pct=args.risk_pct,
+        min_edge_bps=args.min_edge_bps,
+        base_thresh=args.thresh,
+        sweep=args.sweep,
+    )
 
     out_json = {
-        'cohort': 'sealed_oos_realistic',
+        'cohort': 'sealed_oos_realistic_tb_policy',
         'start': str(pred_df['timestamp'].iloc[0]),
         'end': str(pred_df['timestamp'].iloc[-1]),
         'samples': len(pred_df),
         'buy_and_hold_return_pct': bh_ret,
-        'execution_params': {'fee': 0.0, 'spread_usd': 0.8, 'ping_ms': 60.0, 'slippage_bps_per_side': 0.3},
+        'broker_specs': BROKER_CFG,
+        'execution_params': {
+            'mode': 'triple_barrier_only',
+            'use_policy': use_policy,
+            'min_edge_bps': args.min_edge_bps,
+            'base_thresh': args.thresh,
+            'sweep': args.sweep,
+            'risk_pct_per_trade': args.risk_pct,
+            'be_trigger_frac': args.be_trigger,
+            'be_lock_frac': args.be_lock,
+            'trail_start_frac': args.trail_start,
+            'trail_dist_frac': args.trail_dist,
+            'sl_recovery_thresh': args.sl_thresh,
+            'commission_per_lot': BROKER_CFG['commission_per_lot'],
+            'swap_long': BROKER_CFG['swap_long'],
+            'swap_short': BROKER_CFG['swap_short'],
+            'spread_usd': args.spread_usd,
+            'ping_ms': args.ping_ms,
+            'ping_min_ms': args.ping_min_ms,
+            'ping_max_ms': args.ping_max_ms,
+            'ping_seed': args.ping_seed,
+            'slippage_bps_per_side': args.slippage_bps,
+            'leverage': args.leverage,
+            'initial_balance_usc': args.initial_usc,
+            'margin_call_pct': BROKER_CFG['margin_call_pct'],
+            'stop_out_pct': BROKER_CFG['stop_out_pct'],
+        },
         'backtests': real_results,
     }
-    out_path = Path('models/v8_btc_dollar/sealed_oos_realistic_backtest.json')
+    out_path = Path(args.out_json)
     out_path.write_text(json.dumps(out_json, indent=2))
     print(f'\nSaved realistic backtest results to {out_path} (total {time.time() - t0:.1f}s)')
 

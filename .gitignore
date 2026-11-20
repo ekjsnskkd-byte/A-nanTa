@@ -1,0 +1,23 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyd
+
+# C extensions
+*.so
+
+# Virtual environments
+venv/
+.venv/
+env/
+ENV/
+
+# Data cache & large archives
+data_cache/
+*.zip
+*.tar.gz
+*.tgz
+
+# Large generated prediction cache (>100MB exceeds GitHub push limit)
+models/**/preds_2026.parquet
