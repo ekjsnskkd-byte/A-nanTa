@@ -1,0 +1,27 @@
+name: Export V8 pure ONNX
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'scripts/export_v8_onnx.py'
+      - '.github/workflows/export-v8-onnx.yml'
+jobs:
+  export:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          lfs: true
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install torch==2.6.0 --index-url https://download.pytorch.org/whl/cpu
+      - run: pip install 'numpy<2' pandas onnx onnxruntime
+      - run: python scripts/export_v8_onnx.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ananta-v8-pure-onnx
+          path: |
+            models/v8_btc_dollar/ananta_v8_btc_dollar.onnx
+            models/v8_btc_dollar/onnx_manifest.json
+          if-no-files-found: error
