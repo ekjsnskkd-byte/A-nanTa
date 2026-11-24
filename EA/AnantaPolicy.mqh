@@ -12,7 +12,7 @@ struct AnPolicyConfig {
  int max_layers, expiry_bars;
 };
 void AnPolicyDefaults(AnPolicyConfig &c){
- c.base_risk=0.005;c.basket_risk=0.02;c.max_margin_fraction=0.20;
+ c.base_risk=0.01;c.basket_risk=0.02;c.max_margin_fraction=0.20;
  c.min_direction=0.12;c.min_agreement=0.55;c.min_utility=0;
  c.min_reward_risk=1.2;c.max_reversal=0.70;c.min_stability=0.35;
  c.pyramid_multiplier=1.25;c.profit_credit_fraction=0.25;c.exit_pressure=0.55;
@@ -38,8 +38,8 @@ struct AnOrderPlan {
 double AnPClamp(double x,double a,double b){return MathMax(a,MathMin(b,x));}
 bool AnPFinite(double x){return MathIsValidNumber(x)&&x!=EMPTY_VALUE;}
 bool AnPolicyConfigOK(const AnPolicyConfig &c){
- return c.base_risk>0&&c.basket_risk>=c.base_risk&&c.basket_risk<=0.05&&
- c.max_margin_fraction>0&&c.max_margin_fraction<=1&&c.max_layers>=1&&c.max_layers<=5&&
+ return c.base_risk>0&&c.base_risk<=0.01&&c.basket_risk>=c.base_risk&&c.basket_risk<=0.05&&
+ c.max_margin_fraction>0&&c.max_margin_fraction<=1&&c.max_layers>=1&&c.max_layers<=3&&
  c.pyramid_multiplier>=1&&c.pyramid_multiplier<=2&&c.profit_credit_fraction>=0&&c.profit_credit_fraction<=1&&
  c.min_direction>0&&c.min_direction<=1&&c.min_agreement>=0&&c.min_agreement<=1&&
  c.min_reward_risk>0&&c.max_reversal>=0&&c.max_reversal<=1&&c.min_stability>=0&&c.min_stability<=1&&
@@ -127,7 +127,7 @@ bool AnPlanLimit(const string symbol,const AnForecast &f,const AnComposite &s,
  // Diminish risk in unstable or uncertain forecasts, never increase base risk
  // for confidence alone. Pyramiding can raise target lots, but cap basket loss.
  double quality=AnPClamp(s.direction_confidence*s.market_stability*(1-s.risk_score),0,1);
- double target=eq*c.base_risk*quality*MathPow(c.pyramid_multiplier,b.layers);
+ double target=b.layers==0?eq*c.base_risk:eq*c.base_risk*quality*MathPow(c.pyramid_multiplier,b.layers);
  if(b.layers>0)target=MathMin(target,eq*c.base_risk*quality+c.profit_credit_fraction*b.protected_profit);
  double budget=MathMin(target,eq*c.basket_risk-b.exposure_risk);
  if(budget<=0)return false;
