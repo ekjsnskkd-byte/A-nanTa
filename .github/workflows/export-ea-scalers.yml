@@ -1,0 +1,59 @@
+name: Generate native EA scalers
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/export-ea-scalers.yml'
+      - 'EA/export_mt5_scalers.py'
+      - 'models/v8_btc_dollar/ananta_v8_btc_dollar.pt'
+permissions:
+  contents: write
+concurrency:
+  group: ea-scalers-main
+  cancel-in-progress: false
+jobs:
+  export:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          lfs: true
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install torch==2.6.0 --index-url https://download.pytorch.org/whl/cpu
+      - run: pip install 'numpy<2' pandas
+      - name: Generate exact frozen checkpoint scalers
+        run: python EA/export_mt5_scalers.py
+      - name: Validate generated header
+        run: |
+          python - <<'PY'
+          import re, math
+          from pathlib import Path
+          text = Path("EA/AnantaScalers.mqh").read_text()
+          arrays = dict(re.findall(r'double (\w+)\[40\]=\{([^}]+)\};', text))
+          expected = {prefix+tf for prefix in ('AnMed','AnIqr') for tf in ('','M15','H1','H4','D1')}
+          assert set(arrays) == expected
+          for name, raw in arrays.items():
+              vals = [float(x) for x in raw.split(',')]
+              assert len(vals) == 40 and all(math.isfinite(x) for x in vals), name
+              if name.startswith('AnIqr'):
+                  assert all(x > 0 for x in vals), name
+          print('Validated 400 frozen scaler values')
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ananta-native-scalers
+          path: EA/AnantaScalers.mqh
+          if-no-files-found: error
+      - name: Commit generated header
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -f EA/AnantaScalers.mqh
+          if git diff --cached --quiet; then exit 0; fi
+          git commit -m 'Generate native EA scalers from frozen V8 checkpoint'
+          git pull --rebase origin main
+          git push origin HEAD:main
